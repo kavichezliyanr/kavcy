@@ -1,0 +1,16 @@
+{
+  "name": "Kavcy — Post-Quantum Personal AI Vault",
+  "short_name": "Kavcy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0b0d",
+  "theme_color": "#0b0b0d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "description": "Zero-knowledge, post-quantum encrypted personal AI workspace with client-side RAG and realtime zero-egress verification."
+}

@@ -1,0 +1,73 @@
+name: Build & Release Kavcy Executables (macOS & Windows)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-executables:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            artifact: release/*.dmg
+          - os: windows-latest
+            platform: win
+            artifact: release/*.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Post-Quantum Crypto Tests
+        run: npm run test:crypto
+
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Install Electron & Electron Builder
+        run: npm install --no-save electron electron-builder
+
+      - name: Package ${{ matrix.platform }} Executable
+        run: npx electron-builder --${{ matrix.platform }} --publish never
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kavcy-${{ matrix.platform }}
+          path: ${{ matrix.artifact }}
+
+  publish-release:
+    needs: build-executables
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/kavcy-mac/*.dmg
+            artifacts/kavcy-win/*.exe
