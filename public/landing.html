@@ -288,31 +288,108 @@
 
       <!-- DOWNLOADS & CI/CD RELEASES -->
       <section id="downloads" class="section">
-        <div class="section-kicker">Install &amp; Release Pipeline</div>
+        <div class="section-kicker">Install &amp; Downloads</div>
         <h2>Run on Web, iPad, macOS, or Windows.</h2>
+        <p id="release-meta" style="color: var(--secondary); font-size: 0.9rem; margin-top: 4px;">
+          Latest Release: <strong style="color: var(--text);">v1.0.0</strong> · Built &amp; verified automatically via GitHub Actions
+        </p>
         <div class="grid-3">
           <div class="card">
             <h3>Web &amp; Mobile PWA</h3>
-            <p style="margin-bottom: 14px;">Zero installation. Runs on macOS, Windows, iPadOS, iOS, and Android with offline encrypted caching.</p>
+            <p style="margin-bottom: 16px;">Zero installation. Runs on macOS, Windows, iPadOS, iOS, and Android with offline encrypted caching.</p>
             <a class="btn btn-primary" href="./app.html" onclick="if (location.hostname === 'localhost') { this.href = '/'; }">Launch Web App</a>
           </div>
           <div class="card">
             <h3>macOS Executable (.dmg)</h3>
-            <p style="margin-bottom: 12px;">Built automatically via GitHub Actions (<code>release-desktop.yml</code>) on every tagged release.</p>
-            <code>git tag v1.0.0 &amp;&amp; git push --tags</code>
+            <p id="mac-size" style="margin-bottom: 16px;">Apple Silicon native desktop app (<code>.dmg</code>) with local encrypted vault &amp; hardware RAM guard.</p>
+            <a
+              id="btn-mac-dmg"
+              class="btn btn-primary"
+              href="https://github.com/kavichezliyanr/kavcy/releases/download/v1.0.0/Kavcy-1.0.0-arm64.dmg"
+            >
+              Download macOS (.dmg)
+            </a>
           </div>
           <div class="card">
             <h3>Windows Executable (.exe)</h3>
-            <p style="margin-bottom: 12px;">NSIS &amp; portable Windows installers built cleanly in CI and attached to GitHub Releases.</p>
-            <code>.github/workflows/release-desktop.yml</code>
+            <p id="win-size" style="margin-bottom: 16px;">Native Windows installer (<code>Setup.exe</code>) and standalone portable executable.</p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <a
+                id="btn-win-setup"
+                class="btn btn-primary"
+                href="https://github.com/kavichezliyanr/kavcy/releases/download/v1.0.0/Kavcy.Setup.1.0.0.exe"
+              >
+                Download Installer (.exe)
+              </a>
+              <a
+                id="btn-win-portable"
+                class="btn"
+                href="https://github.com/kavichezliyanr/kavcy/releases/download/v1.0.0/Kavcy.1.0.0.exe"
+              >
+                Portable .exe
+              </a>
+            </div>
           </div>
         </div>
+        <p style="margin-top: 16px; font-size: 0.8rem; color: var(--muted);">
+          View all builds, checksums &amp; release notes on
+          <a href="https://github.com/kavichezliyanr/kavcy/releases" style="color: var(--accent);">GitHub Releases</a> ·
+          Read the <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/ARCHITECTURE.md" style="color: var(--accent);">Architecture Spec</a> &amp;
+          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/PRIVACY_AND_FAQ.md" style="color: var(--accent);">Privacy FAQ</a>.
+        </p>
       </section>
 
       <footer>
         <span>Kavcy — Verifiable Open-Source Post-Quantum Personal AI</span>
-        <span>Zero Telemetry · NIST ML-KEM-768 · AES-256-GCM</span>
+        <span>
+          <a href="https://github.com/kavichezliyanr/kavcy" style="color: var(--secondary); text-decoration: none;">GitHub</a> ·
+          MIT License · NIST ML-KEM-768 · AES-256-GCM
+        </span>
       </footer>
     </div>
+
+    <script>
+      // Automatically keep homepage download buttons synced with the latest GitHub Release
+      (async () => {
+        try {
+          const res = await fetch('https://api.github.com/repos/kavichezliyanr/kavcy/releases/latest');
+          if (!res.ok) return;
+          const rel = await res.json();
+          const assets = Array.isArray(rel.assets) ? rel.assets : [];
+          const dmg = assets.find((a) => a.name.endsWith('.dmg'));
+          const winSetup = assets.find((a) => /setup.*\.exe$/i.test(a.name));
+          const winPortable = assets.find((a) => a.name.endsWith('.exe') && !/setup/i.test(a.name));
+          const mb = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+          const meta = document.getElementById('release-meta');
+          if (meta && rel.tag_name) {
+            meta.innerHTML = `Latest Release: <strong style="color: var(--text);">${rel.tag_name}</strong> · Automatically built &amp; published via GitHub Actions`;
+          }
+          if (dmg) {
+            const el = document.getElementById('btn-mac-dmg');
+            if (el) {
+              el.href = dmg.browser_download_url;
+              el.textContent = `Download macOS (${mb(dmg.size)})`;
+            }
+          }
+          if (winSetup) {
+            const el = document.getElementById('btn-win-setup');
+            if (el) {
+              el.href = winSetup.browser_download_url;
+              el.textContent = `Windows Installer (${mb(winSetup.size)})`;
+            }
+          }
+          if (winPortable) {
+            const el = document.getElementById('btn-win-portable');
+            if (el) {
+              el.href = winPortable.browser_download_url;
+              el.textContent = `Portable (${mb(winPortable.size)})`;
+            }
+          }
+        } catch {
+          // Fallback static v1.0.0 URLs already set in HTML
+        }
+      })();
+    </script>
   </body>
 </html>
