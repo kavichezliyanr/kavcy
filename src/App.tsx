@@ -52,6 +52,9 @@ import {
   Flame,
   PanelRightOpen,
   Share2,
+  Workflow,
+  FolderUp,
+  Fingerprint,
 } from 'lucide-react';
 import {
   saveEncryptedEnvelope,
@@ -59,6 +62,9 @@ import {
   wipeAllEncryptedEnvelopes,
 } from './utils/idbVault';
 import { splitSecretIntoShards, combineShardsToSecret } from './crypto/shamir';
+import { KnowledgeGraph } from './components/KnowledgeGraph';
+import { SealedDropPanel } from './components/SealedDropPanel';
+import { WorkflowsAndTools } from './components/WorkflowsAndTools';
 import {
   createVaultSession,
   encryptVault,
@@ -70,7 +76,7 @@ import {
   unlockVault,
   type UnlockedVaultSession,
 } from './crypto/pqVault';
-import { buildVaultDocument, retrieveRagContext } from './utils/ragEngine';
+import { buildVaultDocument, extractTextFromFile, retrieveRagContext } from './utils/ragEngine';
 import { DEFAULT_SKILLS } from './data/defaultSkills';
 import { MarkdownText } from './components/MarkdownText';
 import { KavcyEmblem } from './components/KavcyEmblem';
@@ -102,7 +108,7 @@ import type {
   VaultPayload,
 } from './types';
 
-type ActiveTab = 'chat' | 'knowledge' | 'skills' | 'hardware' | 'inspector' | 'docs' | 'settings';
+type ActiveTab = 'chat' | 'knowledge' | 'skills' | 'workflows' | 'hardware' | 'inspector' | 'docs' | 'settings';
 
 const DEFAULT_INFERENCE: InferenceConfig = {
   mode: 'sandbox',
@@ -278,6 +284,9 @@ export default function App() {
   const [shamirShards, setShamirShards] = useState<string[]>([]);
   const [shamirRecoverInput, setShamirRecoverInput] = useState('');
   const [shamirRecovered, setShamirRecovered] = useState('');
+  const [duressPhraseInput, setDuressPhraseInput] = useState('');
+  const [byosUrl, setByosUrl] = useState(() => localStorage.getItem('kavcy_byos_url') || '');
+  const [bundleSha256, setBundleSha256] = useState('');
   const [starredOnly, setStarredOnly] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editMsgDraft, setEditMsgDraft] = useState('');
@@ -540,6 +549,32 @@ export default function App() {
       let envelope: EncryptedVaultEnvelope | null = null;
       let recoveredFromLocal = false;
 
+      // Plausible-Deniability Duress Passphrase check
+      const storedDuressHash = localStorage.getItem(`kavcy_duress_${cleanId}`);
+      if (storedDuressHash) {
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(passphrase));
+        const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+        if (hex === storedDuressHash) {
+          const decoySession = await createVaultSession(`${cleanId}-decoy`, passphrase);
+          const decoyPayload = createInitialPayload(theme);
+          decoyPayload.memories = [
+            {
+              id: crypto.randomUUID(),
+              title: 'Grocery List',
+              category: 'note',
+              tags: ['personal'],
+              content: 'Oat milk, coffee beans, apples, sparkling water.',
+              createdAt: new Date().toISOString(),
+            },
+          ];
+          setSession(decoySession);
+          setFingerprint(await getKeyFingerprint(decoySession.kemPublicKey));
+          setPayload(decoyPayload);
+          setPassphrase('');
+          return;
+        }
+      }
+
       // Prefer IndexedDB encrypted vault cache first (gigabyte capacity + zero 404 console noise)
       const cached = await loadEncryptedEnvelope(cleanId);
       if (cached) {
@@ -767,7 +802,7 @@ export default function App() {
 
     const newDocs: VaultDocument[] = [];
     for (const file of files) {
-      const text = await file.text();
+      const text = await extractTextFromFile(file);
       if (!text.trim()) continue;
       newDocs.push(buildVaultDocument(file.name, text, file.type || 'text/plain'));
     }
@@ -1174,6 +1209,73 @@ export default function App() {
     showToast('Wiped all IndexedDB & localStorage encrypted caches.');
   }
 
+  async function handleVerifyBundleIntegrity() {
+    try {
+      const html = document.documentElement.outerHTML;
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(html));
+      const hex = Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+      setBundleSha256(hex);
+      showToast('Computed live SHA-256 integrity hash of running app.');
+    } catch {
+      showToast('Unable to compute bundle hash.');
+    }
+  }
+
+  async function handleRegisterPasskey() {
+    if (!window.PublicKeyCredential) {
+      showToast('WebAuthn Passkeys are not supported in this browser.');
+      return;
+    }
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const userId = crypto.getRandomValues(new Uint8Array(16));
+      await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'Kavcy Vault' },
+          user: { id: userId, name: session?.vaultId || 'kavcy-user', displayName: 'Kavcy Vault Owner' },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+          authenticatorSelection: { userVerification: 'preferred' },
+          timeout: 60000,
+        },
+      });
+      showToast('Hardware Passkey registered for this device!');
+    } catch {
+      showToast('Passkey registration cancelled or requires HTTPS/localhost.');
+    }
+  }
+
+  async function handleSaveDuressPhrase() {
+    if (!session || duressPhraseInput.trim().length < 4) {
+      showToast('Enter a duress passphrase of at least 4 characters.');
+      return;
+    }
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(duressPhraseInput.trim()));
+    const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem(`kavcy_duress_${session.vaultId}`, hex);
+    setDuressPhraseInput('');
+    showToast('Plausible-Deniability Duress Passphrase configured.');
+  }
+
+  async function handleByosPush() {
+    if (!byosUrl.trim() || !serverEnvelope) {
+      showToast('Enter your WebDAV / S3-Presigned PUT URL first.');
+      return;
+    }
+    try {
+      localStorage.setItem('kavcy_byos_url', byosUrl.trim());
+      const res = await fetch(byosUrl.trim(), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(serverEnvelope),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      showToast('Pushed opaque ML-KEM-768 ciphertext to your BYOS bucket!');
+    } catch (err) {
+      showToast(`BYOS sync failed: ${err instanceof Error ? err.message : 'Check CORS/URL'}`);
+    }
+  }
+
   function handleExportSkills() {
     if (!payload) return;
     const blob = new Blob([JSON.stringify(payload.skills, null, 2)], { type: 'application/json' });
@@ -1578,6 +1680,9 @@ export default function App() {
               <Sparkles size={15} /> Skills &amp; Templates
               <span className="nav-badge">{enabledSkills.length}</span>
             </button>
+            <button className={`nav-item ${activeTab === 'workflows' ? 'active' : ''}`} onClick={() => { setActiveTab('workflows'); setDrawerOpen(false); }}>
+              <Workflow size={15} /> Workflows &amp; Tools
+            </button>
             <button className={`nav-item ${activeTab === 'hardware' ? 'active' : ''}`} onClick={() => { setActiveTab('hardware'); setDrawerOpen(false); }}>
               <Activity size={15} /> Network &amp; Hardware
               <span className="nav-badge">{formatBytes(netMeter.externalBytes)}</span>
@@ -1969,7 +2074,7 @@ export default function App() {
                     ref={chatFileInputRef}
                     type="file"
                     multiple
-                    accept=".txt,.md,.json,.csv,.js,.ts,.tsx,.py,.html,.xml,.log"
+                    accept=".pdf,.txt,.md,.json,.csv,.js,.ts,.tsx,.py,.html,.xml,.log"
                     hidden
                     onChange={(e) => {
                       if (e.target.files) void ingestFilesForRag(e.target.files);
@@ -2064,14 +2169,31 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: DOCS & MEMORY */}
+        {/* TAB 2: DOCS, KNOWLEDGE GRAPH & MEMORY */}
         {activeTab === 'knowledge' && (
           <div className="content-pane">
-            <div className="pane-inner grid-2">
+            <div className="pane-inner">
+              <KnowledgeGraph documents={payload.documents} memories={payload.memories} />
+              <div className="grid-2">
               <div className="card">
-                <h3>
-                  <FileText size={16} /> Encrypted RAG Documents ({payload.documents.length})
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0 }}>
+                    <FileText size={16} /> Encrypted RAG Documents ({payload.documents.length})
+                  </h3>
+                  <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
+                    <FolderUp size={13} /> Import Obsidian / Folder
+                    <input
+                      type="file"
+                      multiple
+                      webkitdirectory=""
+                      hidden
+                      onChange={(e) => {
+                        if (e.target.files) void ingestFilesForRag(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
                 <div
                   className={`dropzone-box ${isDraggingVault ? 'dragging' : ''}`}
                   onDragOver={(e) => {
@@ -2095,7 +2217,7 @@ export default function App() {
                     id="vault-doc-upload"
                     type="file"
                     multiple
-                    accept=".txt,.md,.json,.csv,.js,.ts,.tsx,.py,.html,.xml,.log"
+                    accept=".pdf,.txt,.md,.json,.csv,.js,.ts,.tsx,.py,.html,.xml,.log"
                     hidden
                     onChange={(e) => {
                       if (e.target.files) void ingestFilesForRag(e.target.files);
@@ -2258,8 +2380,22 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              </div>
             </div>
           </div>
+        )}
+
+        {/* TAB 3B: WORKFLOWS, APPROVAL TOOLS & CSV CHART ANALYZER */}
+        {activeTab === 'workflows' && (
+          <WorkflowsAndTools
+            documents={payload.documents}
+            memories={payload.memories}
+            onRunPrompt={(prompt) => {
+              setActiveTab('chat');
+              void sendPromptText(prompt);
+            }}
+            onToast={showToast}
+          />
         )}
 
         {/* TAB 3: SKILLS & PROMPT TEMPLATES */}
@@ -2579,11 +2715,19 @@ export default function App() {
                     <button className="btn btn-secondary btn-sm" onClick={handleRotateKeys}>
                       <KeyRound size={14} /> Rotate ML-KEM-768 Keys
                     </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => void handleVerifyBundleIntegrity()}>
+                      Verify Build SHA-256
+                    </button>
                     <button className="btn btn-primary btn-sm" onClick={handleExportVaultBackup}>
                       <Download size={14} /> Export .kavcy.json
                     </button>
                   </div>
                 </div>
+                {bundleSha256 && (
+                  <div className="spec-line" style={{ marginTop: 10, marginBottom: 0 }}>
+                    Running App SHA-256: <span style={{ fontFamily: 'monospace' }}>{bundleSha256.slice(0, 32)}…</span>
+                  </div>
+                )}
                 {tamperResult && (
                   <div
                     className="spec-line"
@@ -2641,6 +2785,8 @@ export default function App() {
                   </pre>
                 </div>
               </div>
+
+              <SealedDropPanel session={session} onToast={showToast} />
 
               <div className="card" style={{ marginBottom: 18 }}>
                 <h3><Share2 size={16} /> Shamir&apos;s Secret Sharing (3-of-5 Recovery Shards)</h3>
@@ -2957,7 +3103,41 @@ export default function App() {
                   </select>
                 </div>
 
+                <div className="field">
+                  <label>Plausible-Deniability Duress Passphrase (opens decoy vault)</label>
+                  <div className="input-row">
+                    <input
+                      className="input"
+                      type="password"
+                      value={duressPhraseInput}
+                      onChange={(e) => setDuressPhraseInput(e.target.value)}
+                      placeholder="Set secondary decoy passphrase..."
+                    />
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void handleSaveDuressPhrase()}>
+                      Set Duress
+                    </button>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Bring-Your-Own-Storage (BYOS) WebDAV / S3 Presigned PUT URL</label>
+                  <div className="input-row">
+                    <input
+                      className="input"
+                      value={byosUrl}
+                      onChange={(e) => setByosUrl(e.target.value)}
+                      placeholder="https://my-bucket.r2.cloudflarestorage.com/kavcy.json?..."
+                    />
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void handleByosPush()}>
+                      Sync Ciphertext
+                    </button>
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => void handleRegisterPasskey()}>
+                    <Fingerprint size={13} /> Register Passkey
+                  </button>
                   <button className="btn btn-secondary btn-sm" onClick={handleExportVaultBackup}>
                     <Download size={13} /> Export .kavcy.json
                   </button>

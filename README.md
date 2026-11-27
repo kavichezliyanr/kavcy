@@ -69,6 +69,22 @@ Most cloud chatbots log your prompts and train on your private files. Most local
       <img src="./public/screenshots/step4-get-started.png" alt="Kavcy Get Started Documentation" />
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <strong>5. Personal Knowledge Graph &amp; Obsidian Import</strong><br/>
+      <img src="./public/screenshots/step5-knowledge-graph.png" alt="Kavcy Personal Knowledge Graph" />
+    </td>
+    <td width="50%">
+      <strong>6. Human-Approved Tools &amp; Local CSV Charts</strong><br/>
+      <img src="./public/screenshots/step6-workflows-tools.png" alt="Kavcy Workflows and Tool Approval Gate" />
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <strong>7. Post-Quantum ML-KEM-768 Sealed Drops &amp; Shamir 3-of-5 Recovery Shards</strong><br/>
+      <img src="./public/screenshots/step7-zk-sealed-shamir.png" alt="Kavcy Sealed Drops and Shamir Shards" />
+    </td>
+  </tr>
 </table>
 
 ---

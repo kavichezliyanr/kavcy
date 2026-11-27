@@ -17,19 +17,55 @@ function tokenize(text: string): string[] {
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 }
 
+function charTrigrams(text: string): Map<string, number> {
+  const clean = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const map = new Map<string, number>();
+  for (let i = 0; i <= clean.length - 3; i++) {
+    const tri = clean.slice(i, i + 3);
+    map.set(tri, (map.get(tri) || 0) + 1);
+  }
+  return map;
+}
+
+function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (const [k, v] of a) {
+    normA += v * v;
+    const bv = b.get(k);
+    if (bv) dot += v * bv;
+  }
+  for (const v of b.values()) normB += v * v;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+}
+
+/**
+ * Pure client-side PDF text extractor for uncompressed/literal PDF text blocks
+ * (0 B external network, zero heavy dependencies).
+ */
+export async function extractTextFromFile(file: File): Promise<string> {
+  if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const latin1 = new TextDecoder('latin1').decode(bytes);
+    const matches = latin1.match(/\(([^()\\]{3,})\)/g) || [];
+    const extracted = matches
+      .map((m) => m.slice(1, -1).replace(/\\[nrt]/g, ' '))
+      .filter((s) => /[a-zA-Z0-9]{2,}/.test(s))
+      .join(' ');
+    return extracted.trim() || `[PDF binary: ${file.name} (${(file.size / 1024).toFixed(1)} KB) — export as text or markdown for full indexing]`;
+  }
+  return file.text();
+}
+
 export function buildVaultDocument(title: string, text: string, mimeType = 'text/plain'): VaultDocument {
   const docId = crypto.randomUUID();
   const normalized = text.replace(/\r\n/g, '\n').trim();
   const chunks: DocumentChunk[] = [];
 
   if (normalized.length <= CHUNK_SIZE) {
-    chunks.push({
-      id: crypto.randomUUID(),
-      docId,
-      docTitle: title,
-      index: 0,
-      text: normalized,
-    });
+    chunks.push({ id: crypto.randomUUID(), docId, docTitle: title, index: 0, text: normalized });
   } else {
     let start = 0;
     let index = 0;
@@ -37,13 +73,7 @@ export function buildVaultDocument(title: string, text: string, mimeType = 'text
       const end = Math.min(normalized.length, start + CHUNK_SIZE);
       const slice = normalized.slice(start, end).trim();
       if (slice.length > 0) {
-        chunks.push({
-          id: crypto.randomUUID(),
-          docId,
-          docTitle: title,
-          index,
-          text: slice,
-        });
+        chunks.push({ id: crypto.randomUUID(), docId, docTitle: title, index, text: slice });
         index++;
       }
       if (end >= normalized.length) break;
@@ -73,6 +103,10 @@ export interface RagResult {
   citations: ChatCitation[];
 }
 
+/**
+ * Hybrid BM25 + Character Trigram Cosine Vector Retrieval (100% in browser RAM).
+ * Handles exact keywords, partial stems, and spelling variants cleanly.
+ */
 export function retrieveRagContext(
   query: string,
   documents: VaultDocument[],
@@ -82,6 +116,7 @@ export function retrieveRagContext(
 ): RagResult {
   const queryTokens = tokenize(query);
   const queryLower = query.toLowerCase().trim();
+  const queryVec = charTrigrams(query);
 
   type Candidate = {
     sourceType: 'document' | 'memory';
@@ -92,7 +127,6 @@ export function retrieveRagContext(
   };
 
   const candidates: Candidate[] = [];
-
   for (const doc of documents) {
     if (doc.enabled === false) continue;
     for (const chunk of doc.chunks) {
@@ -105,7 +139,6 @@ export function retrieveRagContext(
       });
     }
   }
-
   for (const mem of memories) {
     candidates.push({
       sourceType: 'memory',
@@ -116,9 +149,7 @@ export function retrieveRagContext(
     });
   }
 
-  if (candidates.length === 0) {
-    return { contextBlocks: [], citations: [] };
-  }
+  if (candidates.length === 0) return { contextBlocks: [], citations: [] };
 
   const df = new Map<string, number>();
   for (const token of new Set(queryTokens)) {
@@ -133,30 +164,27 @@ export function retrieveRagContext(
   for (const c of candidates) {
     const titleLower = c.title.toLowerCase();
     const contentLower = c.content.toLowerCase();
-    let score = 0;
+    let bm25 = 0;
 
-    if (queryLower.length > 4 && contentLower.includes(queryLower)) {
-      score += 8;
-    }
-
+    if (queryLower.length > 4 && contentLower.includes(queryLower)) bm25 += 8;
     for (const token of queryTokens) {
       const freq = df.get(token) || 0;
       const idf = Math.log(1 + totalDocs / (1 + freq));
-      if (titleLower.includes(token)) score += 3.0 * idf;
-      if (contentLower.includes(token)) score += 1.5 * idf;
+      if (titleLower.includes(token)) bm25 += 3.0 * idf;
+      if (contentLower.includes(token)) bm25 += 1.5 * idf;
     }
-    c.score = score;
+
+    const trigramSim = cosineSimilarity(queryVec, charTrigrams(`${c.title} ${c.content.slice(0, 350)}`));
+    c.score = bm25 + trigramSim * 4.5;
   }
 
   const ranked = candidates
-    .filter((c) => c.score > minScore)
+    .filter((c) => c.score > minScore + 0.15)
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 
   const wantsSummary =
-    ranked.length === 0 &&
-    /(summar|overview|what.*doc|what.*file|my note|everything)/i.test(queryLower);
-
+    ranked.length === 0 && /(summar|overview|what.*doc|what.*file|my note|everything)/i.test(queryLower);
   const selected = wantsSummary ? candidates.slice(0, Math.min(topK, candidates.length)) : ranked;
 
   return {
