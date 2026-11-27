@@ -1,0 +1,46 @@
+name: Test & Package Kavcy SDKs (Node.js & Python)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/**'
+      - '.github/workflows/release-sdks.yml'
+  workflow_dispatch:
+
+jobs:
+  node-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install & Test @kavcy/sdk
+        working-directory: sdk/node
+        run: |
+          npm install
+          npm test
+          npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kavcy-node-sdk
+          path: sdk/node/*.tgz
+
+  python-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test & Build kavcy-sdk Wheel
+        working-directory: sdk/python
+        run: |
+          python -m unittest discover -s tests
+          python -m pip install --upgrade build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kavcy-python-sdk
+          path: sdk/python/dist/*

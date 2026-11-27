@@ -74,12 +74,42 @@ Most cloud chatbots log your prompts and train on your private files. Most local
 ---
 
 ## Key Features
-- **Post-Quantum Cryptography:** NIST FIPS 203 `ML-KEM-768` + `AES-256-GCM` + `PBKDF2-SHA512` (310,000 rounds), live 1-bit tamper simulator, and 1-click key rotation.
+- **Post-Quantum Cryptography & Shamir Recovery:** NIST FIPS 203 `ML-KEM-768` + `AES-256-GCM` + `PBKDF2-SHA512` (310,000 rounds), **3-of-5 Shamir's Secret Sharing recovery shards** over GF(2⁸), live 1-bit tamper simulator, and 1-click key rotation.
+- **Encrypted IndexedDB Vault Engine:** Gigabyte-scale client-side encrypted storage (automatically migrates legacy `localStorage` caches).
+- **Ephemeral Burn-After-Close Threads:** Volatile RAM-only conversations that are never written to IndexedDB or sync storage.
+- **Native Local Ollama Bridge & Live RAM Telemetry:** Auto-detects local Ollama models, reports real-time `tokens/sec`, streams a live host RAM utilization sparkline, and unloads models in 1 click to free **100% of CPU & RAM**.
+- **Split-Pane Live Artifact Canvas:** Edit, refine, copy, and export drafted documents, code, or memos side-by-side next to the chat.
 - **Realtime Zero-Egress Proof:** Live `fetch()` byte meter (`External: 0 B`) + **Strict Air-Gap Kill Switch**.
-- **Hardware Guard & Model Kill Switch:** Validates your machine's RAM/disk before local model downloads and unloads models in 1 click to free **100% of CPU & RAM**.
 - **Drag-and-Drop Client-Side RAG:** Chunking, TF-IDF citations, Top-K & relevance sliders, and per-document active/paused toggles.
-- **Workspace Ergonomics:** Multi-conversation threads (pin, rename, fork, tag, export `.md`), slash commands (`/rag`, `/clear`, `/export`, `/unload`, `/lock`), prompt templates, encrypted scratchpad, `⌘K` Command Palette, Obsidian Dark & Paper Light themes.
-- **Direct-to-TEE Cloud Option:** Optionally connect Tinfoil, Venice.ai, or Phala directly from your browser with zero proxy hop.
+- **Official Developer SDKs:** Embed Kavcy's post-quantum vault, Shamir recovery, and client-side RAG into your own apps with [`@kavcy/sdk` (Node.js/TypeScript)](./sdk/node/README.md) and [`kavcy-sdk` (Python)](./sdk/python/README.md).
+
+---
+
+## Official SDKs (Integrate Kavcy in Your Apps)
+
+### Node.js / TypeScript (`@kavcy/sdk`)
+```bash
+npm install @kavcy/sdk
+```
+```js
+import { KavcyVault, splitSecret, combineShares, chunkDocument, searchRag } from '@kavcy/sdk';
+
+const vault = await KavcyVault.create('my-vault', 'strong-passphrase');
+const envelope = await vault.encrypt({ note: 'Private user memory' });
+const shards = splitSecret('strong-passphrase', 5, 3); // 3-of-5 recovery shards
+```
+
+### Python (`kavcy-sdk`)
+```bash
+pip install kavcy-sdk
+```
+```python
+from kavcy import KavcyVault, split_secret, combine_shares, chunk_document, search_rag
+
+vault = KavcyVault("my-py-vault", "strong-passphrase")
+envelope = vault.encrypt({"notes": ["Private financial summary"]})
+shards = split_secret("strong-passphrase", total_shares=5, threshold=3)
+```
 
 ---
 

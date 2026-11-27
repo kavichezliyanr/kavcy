@@ -20,11 +20,9 @@ test('ML-KEM-768 + AES-256-GCM post-quantum vault roundtrip & tamper detection',
     await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, new TextEncoder().encode(payload))
   );
 
-  // Decrypt succeeds with valid key & untampered ciphertext
   const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, encrypted);
   assert.equal(new TextDecoder().decode(decrypted), payload);
 
-  // Tamper 1 bit of ciphertext -> AES-GCM authentication must fail
   const tampered = new Uint8Array(encrypted);
   tampered[0] ^= 0x01;
   await assert.rejects(

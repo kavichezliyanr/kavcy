@@ -131,6 +131,19 @@ export async function handleApiRequest(req, res) {
       return true;
     }
 
+    if (pathname === '/api/ollama/status' && req.method === 'GET') {
+      try {
+        const resp = await fetch('http://127.0.0.1:11434/api/tags');
+        if (!resp.ok) throw new Error('Ollama unavailable');
+        const data = await resp.json();
+        const models = Array.isArray(data.models) ? data.models.map((m) => m.name) : [];
+        sendJson(res, 200, { running: true, models });
+      } catch {
+        sendJson(res, 200, { running: false, models: [] });
+      }
+      return true;
+    }
+
     if (pathname === '/api/model/unload' && req.method === 'POST') {
       const { model } = await readBody(req);
       let ollamaEvicted = false;
@@ -216,6 +229,53 @@ export async function handleApiRequest(req, res) {
     if (pathname === '/api/chat' && req.method === 'POST') {
       const { messages = [], ragContext = [], activeSkills = [], inference = {} } = await readBody(req);
       const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+
+      if (inference?.mode === 'ollama') {
+        const skillsBlock =
+          activeSkills.length > 0
+            ? `Active Agent Skills:\n${activeSkills.map((s) => `- ${s.name}: ${s.instructions}`).join('\n')}`
+            : '';
+        const ragBlock =
+          ragContext.length > 0
+            ? `Retrieved Private Vault Context:\n${ragContext
+                .map((m) => `- [${m.sourceType}: ${m.title}] ${m.content}`)
+                .join('\n')}`
+            : '';
+        const systemPrompt = [
+          inference.customPersona || 'You are Kavcy, a private, post-quantum zero-knowledge personal AI assistant.',
+          skillsBlock,
+          ragBlock,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+
+        const resp = await fetch('http://127.0.0.1:11434/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: inference.model || 'qwen2.5:3b',
+            stream: false,
+            options: { temperature: typeof inference.temperature === 'number' ? inference.temperature : 0.7 },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...messages.map((m) => ({ role: m.role, content: m.content })),
+            ],
+          }),
+        });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          sendJson(res, 502, { error: `Local Ollama error (${resp.status}): ${errText.slice(0, 200)}` });
+          return true;
+        }
+        const data = await resp.json();
+        const reply = data?.message?.content || 'No response from local Ollama model.';
+        const tokensPerSec =
+          data?.eval_count && data?.eval_duration
+            ? Number((data.eval_count / (data.eval_duration / 1e9)).toFixed(1))
+            : undefined;
+        sendJson(res, 200, { reply, providerMode: 'ollama', tokensPerSec });
+        return true;
+      }
 
       if (inference?.mode === 'tee' && inference?.baseUrl && inference?.apiKey) {
         const skillsBlock =

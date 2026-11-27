@@ -3,6 +3,15 @@
 All notable changes to **Kavcy** are documented in this file.
 Kavcy follows [Semantic Versioning](https://semver.org/) via automated GitHub Actions releases.
 
+## [v1.1.0] - 2026-11-27
+### Added
+- **Encrypted IndexedDB Vault Engine:** Replaced 5 MB `localStorage` limit with gigabyte-scale IndexedDB ciphertext storage + automatic migration.
+- **Shamir's Secret Sharing (3-of-5 Recovery Shards):** Pure GF(2⁸) secret splitting & reconstruction inside **ZK Inspector**.
+- **Ephemeral Burn-After-Close Threads:** Volatile RAM-only conversations excluded from IndexedDB and sync storage.
+- **Native Local Ollama Bridge & Live RAM Telemetry Sparkline:** Auto-detects local Ollama models, displays `tokens/sec`, and streams live host RAM usage.
+- **Split-Pane Artifact Canvas:** Side-by-side editable Markdown/Code canvas for refining assistant drafts.
+- **Official Multi-Language SDKs:** Added `@kavcy/sdk` (Node.js/TypeScript) in `sdk/node/` and `kavcy-sdk` (Python) in `sdk/python/` with automated CI testing and packaging (`release-sdks.yml`).
+
 ## [v1.0.0] - 2026-11-25
 ### Added
 - **Post-Quantum Zero-Knowledge Vault:** Client-side NIST FIPS 203 `ML-KEM-768` key encapsulation + `AES-256-GCM` authenticated encryption + `PBKDF2-SHA512` (310,000 iterations).

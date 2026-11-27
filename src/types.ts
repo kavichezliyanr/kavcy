@@ -54,15 +54,17 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   starred?: boolean;
+  tokensPerSec?: number;
   citations?: ChatCitation[];
   activeSkillNames?: string[];
-  providerMode?: 'tee' | 'tee-direct' | 'sandbox';
+  providerMode?: 'tee' | 'tee-direct' | 'ollama' | 'sandbox';
 }
 
 export interface Conversation {
   id: string;
   title: string;
   tag?: 'General' | 'Work' | 'Personal' | 'Finance' | 'Research';
+  ephemeral?: boolean;
   pinned?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -77,7 +79,7 @@ export interface AuditEvent {
 }
 
 export interface InferenceConfig {
-  mode: 'sandbox' | 'tee';
+  mode: 'sandbox' | 'ollama' | 'tee';
   directBrowserTee: boolean;
   providerName: string;
   baseUrl: string;

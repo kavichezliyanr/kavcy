@@ -119,7 +119,8 @@
         </div>
         <nav>
           <a href="#why">Why Kavcy</a>
-          <a href="#walkthrough">Step-by-Step Guide</a>
+          <a href="#walkthrough">Walkthrough</a>
+          <a href="#sdks">Developer SDKs</a>
           <a href="#downloads">Downloads</a>
           <a href="./app.html" onclick="if (location.hostname === 'localhost') { this.href = '/'; }">Launch Web App →</a>
         </nav>
@@ -282,6 +283,47 @@
                 <span class="label-pill">⌘K Command Palette</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OFFICIAL DEVELOPER SDKS -->
+      <section id="sdks" class="section">
+        <div class="section-kicker">Developer Ecosystem</div>
+        <h2>Integrate Kavcy into your own Node.js &amp; Python systems.</h2>
+        <p style="color: var(--secondary); max-width: 720px; margin-top: 6px;">
+          Embed post-quantum <code>ML-KEM-768 + AES-256-GCM</code> encrypted vaults, Shamir 3-of-5 recovery shards,
+          IndexedDB storage, and local client-side RAG directly in your applications.
+        </p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Node.js &amp; TypeScript (<code>@kavcy/sdk</code>)</h3>
+            <p style="margin-bottom: 12px;">Zero-knowledge ML-KEM-768 vault, Shamir M-of-N shards, and RAG with full TypeScript types.</p>
+            <pre style="background: var(--subtle); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.74rem; overflow-x: auto; margin: 0;"><code>npm install @kavcy/sdk
+
+import { KavcyVault, splitSecret } from '@kavcy/sdk';
+const v = await KavcyVault.create('app', pass);
+const env = await v.encrypt({ secret: 'data' });</code></pre>
+          </div>
+          <div class="card">
+            <h3>Python (<code>kavcy-sdk</code>)</h3>
+            <p style="margin-bottom: 12px;">Pure-Python zero-knowledge vault, GF(2⁸) Shamir secret sharing, and local RAG chunker.</p>
+            <pre style="background: var(--subtle); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.74rem; overflow-x: auto; margin: 0;"><code>pip install kavcy-sdk
+
+from kavcy import KavcyVault, split_secret
+env = KavcyVault("app", pass).encrypt({"k": "v"})
+shards = split_secret(pass, 5, 3)</code></pre>
+          </div>
+          <div class="card">
+            <h3>New in v1.1 — High-Impact Upgrades</h3>
+            <p style="margin: 0; font-size: 0.84rem; color: var(--secondary);">
+              • Gigabyte <strong>IndexedDB</strong> encrypted vault<br/>
+              • <strong>3-of-5 Shamir</strong> recovery shards<br/>
+              • <strong>Burn-After-Close</strong> RAM-only threads<br/>
+              • <strong>Native Local Ollama</strong> bridge + tok/s<br/>
+              • <strong>Split-Pane Artifact Canvas</strong><br/>
+              • Live <strong>Host RAM Sparkline</strong>
+            </p>
           </div>
         </div>
       </section>

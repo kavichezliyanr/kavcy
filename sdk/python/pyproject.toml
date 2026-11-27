@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kavcy-sdk"
+version = "1.1.0"
+description = "Official Python SDK for Kavcy Zero-Knowledge Vaults, Shamir M-of-N Secret Sharing, and Local Client-Side RAG."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["kavcy", "post-quantum", "zero-knowledge", "shamir", "rag", "privacy", "ai"]
+dependencies = []
+
+[project.optional-dependencies]
+crypto = ["cryptography>=42.0.0"]
+pq = ["cryptography>=42.0.0", "kyber-py>=1.0.0"]

@@ -1,0 +1,41 @@
+{
+  "name": "@kavcy/sdk",
+  "version": "1.1.0",
+  "description": "Official Node.js & TypeScript SDK for Kavcy Post-Quantum Zero-Knowledge Vaults (ML-KEM-768 + AES-256-GCM), Shamir M-of-N Recovery, and Client-Side RAG.",
+  "type": "module",
+  "main": "./index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.d.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test.mjs"
+  },
+  "keywords": [
+    "kavcy",
+    "post-quantum",
+    "ml-kem-768",
+    "zero-knowledge",
+    "aes-256-gcm",
+    "shamir",
+    "rag",
+    "ai-privacy"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kavichezliyanr/kavcy.git",
+    "directory": "sdk/node"
+  },
+  "dependencies": {
+    "@noble/post-quantum": "^0.4.1"
+  }
+}

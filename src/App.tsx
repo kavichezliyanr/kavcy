@@ -49,7 +49,16 @@ import {
   Wifi,
   WifiOff,
   Tag,
+  Flame,
+  PanelRightOpen,
+  Share2,
 } from 'lucide-react';
+import {
+  saveEncryptedEnvelope,
+  loadEncryptedEnvelope,
+  wipeAllEncryptedEnvelopes,
+} from './utils/idbVault';
+import { splitSecretIntoShards, combineShardsToSecret } from './crypto/shamir';
 import {
   createVaultSession,
   encryptVault,
@@ -140,25 +149,6 @@ function rememberVaultId(id: string) {
   localStorage.setItem('kavcy_last_vault_id', id);
   const next = [id, ...getRecentVaultIds().filter((v) => v !== id)].slice(0, 6);
   localStorage.setItem('kavcy_recent_vaults', JSON.stringify(next));
-}
-
-function saveLocalCiphertextCache(vaultId: string, envelope: EncryptedVaultEnvelope) {
-  try {
-    localStorage.setItem(`kavcy_vault_cache_${vaultId}`, JSON.stringify(envelope));
-  } catch {
-    // ignore quota errors
-  }
-}
-
-function loadLocalCiphertextCache(vaultId: string): EncryptedVaultEnvelope | null {
-  try {
-    const raw =
-      localStorage.getItem(`kavcy_vault_cache_${vaultId}`) ||
-      localStorage.getItem(`aegis_vault_cache_${vaultId}`);
-    return raw ? (JSON.parse(raw) as EncryptedVaultEnvelope) : null;
-  } catch {
-    return null;
-  }
 }
 
 function makeAudit(action: string, detail: string): AuditEvent {
@@ -281,6 +271,13 @@ export default function App() {
   // Workspace states
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
+  const [canvasContent, setCanvasContent] = useState<string | null>(null);
+  const [ollamaStatus, setOllamaStatus] = useState<{ running: boolean; models: string[] }>({ running: false, models: [] });
+  const [ramHistory, setRamHistory] = useState<number[]>([]);
+  const [shamirInput, setShamirInput] = useState('');
+  const [shamirShards, setShamirShards] = useState<string[]>([]);
+  const [shamirRecoverInput, setShamirRecoverInput] = useState('');
+  const [shamirRecovered, setShamirRecovered] = useState('');
   const [starredOnly, setStarredOnly] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editMsgDraft, setEditMsgDraft] = useState('');
@@ -351,9 +348,35 @@ export default function App() {
 
   useEffect(() => {
     const unsub = subscribeNetworkMeter(setNetMeter);
-    void detectHardwareSpecs().then(setHwSpecs);
+    void detectHardwareSpecs().then((specs) => {
+      setHwSpecs(specs);
+      if (specs.totalRamGb && specs.freeRamGb !== undefined) {
+        setRamHistory([Math.round(((specs.totalRamGb - specs.freeRamGb) / specs.totalRamGb) * 100)]);
+      }
+    });
+    void fetch('/api/ollama/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setOllamaStatus(d);
+      })
+      .catch(() => {});
     return unsub;
   }, []);
+
+  // Live host RAM telemetry polling when viewing Network & Hardware tab
+  useEffect(() => {
+    if (activeTab !== 'hardware') return;
+    const id = window.setInterval(() => {
+      void detectHardwareSpecs().then((specs) => {
+        setHwSpecs(specs);
+        if (specs.totalRamGb && specs.freeRamGb !== undefined) {
+          const pct = Math.round(((specs.totalRamGb - specs.freeRamGb) / specs.totalRamGb) * 100);
+          setRamHistory((prev) => [...prev.slice(-19), pct]);
+        }
+      });
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [activeTab]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -405,12 +428,19 @@ export default function App() {
 
   async function syncEncryptedVault(activeSession: UnlockedVaultSession, nextPayload: VaultPayload) {
     setSyncState('syncing');
-    const updated: VaultPayload = { ...nextPayload, updatedAt: new Date().toISOString() };
+    // Strictly exclude ephemeral RAM-only conversations from IndexedDB and sync storage!
+    const persistedConversations = nextPayload.conversations.filter((c) => !c.ephemeral);
+    const updated: VaultPayload = {
+      ...nextPayload,
+      conversations:
+        persistedConversations.length > 0 ? persistedConversations : [createEmptyConversation('New Conversation')],
+      updatedAt: new Date().toISOString(),
+    };
     const t0 = performance.now();
     const envelope = await encryptVault(activeSession, updated);
     setLastEncryptMs(Math.max(1, Math.round(performance.now() - t0)));
 
-    saveLocalCiphertextCache(activeSession.vaultId, envelope);
+    await saveEncryptedEnvelope(activeSession.vaultId, envelope);
     rememberVaultId(activeSession.vaultId);
     setRecentVaults(getRecentVaultIds());
     setServerEnvelope(envelope);
@@ -510,8 +540,8 @@ export default function App() {
       let envelope: EncryptedVaultEnvelope | null = null;
       let recoveredFromLocal = false;
 
-      // Prefer local encrypted cache first to prevent noisy 404 console logs on static hosts
-      const cached = loadLocalCiphertextCache(cleanId);
+      // Prefer IndexedDB encrypted vault cache first (gigabyte capacity + zero 404 console noise)
+      const cached = await loadEncryptedEnvelope(cleanId);
       if (cached) {
         envelope = cached;
       } else {
@@ -568,7 +598,7 @@ export default function App() {
       if (!envelope?.vaultId || !envelope?.kemCiphertext || !envelope?.encryptedData?.ciphertext) {
         throw new Error('Invalid backup');
       }
-      saveLocalCiphertextCache(envelope.vaultId, envelope);
+      await saveEncryptedEnvelope(envelope.vaultId, envelope);
       rememberVaultId(envelope.vaultId);
       setRecentVaults(getRecentVaultIds());
       setVaultIdInput(envelope.vaultId);
@@ -604,8 +634,20 @@ export default function App() {
     setGateMode('unlock');
   }
 
-  async function handleNewConversation() {
-    const conv = createEmptyConversation('New Conversation');
+  async function handleNewConversation(ephemeral = false) {
+    const conv = createEmptyConversation(ephemeral ? 'Burn-After-Close Thread' : 'New Conversation');
+    conv.ephemeral = ephemeral;
+    if (ephemeral && payload) {
+      // Pure RAM-only update: never touches IndexedDB or sync server
+      setPayload({
+        ...payload,
+        conversations: [conv, ...payload.conversations],
+        activeConversationId: conv.id,
+      });
+      setActiveTab('chat');
+      showToast('Started volatile RAM-only thread (never saved to disk).');
+      return;
+    }
     await updatePayload((prev) => ({
       ...prev,
       conversations: [conv, ...prev.conversations],
@@ -747,7 +789,7 @@ export default function App() {
     messagesHistory: ChatMessage[],
     queryText: string,
     currentPayload: VaultPayload
-  ): Promise<{ reply: string; providerMode: 'tee' | 'tee-direct' | 'sandbox'; citations: ChatMessage['citations']; skillNames: string[] }> {
+  ): Promise<{ reply: string; providerMode: 'tee' | 'tee-direct' | 'ollama' | 'sandbox'; tokensPerSec?: number; citations: ChatMessage['citations']; skillNames: string[] }> {
     const enabledSkills = currentPayload.skills.filter((s) => s.enabled);
     const rag = retrieveRagContext(
       queryText,
@@ -822,6 +864,7 @@ export default function App() {
       return {
         reply: data.reply,
         providerMode: data.providerMode,
+        tokensPerSec: data.tokensPerSec,
         citations: rag.citations,
         skillNames,
       };
@@ -912,6 +955,7 @@ export default function App() {
         role: 'assistant',
         content: result.reply,
         timestamp: new Date().toISOString(),
+        tokensPerSec: result.tokensPerSec,
         citations: result.citations,
         activeSkillNames: result.skillNames,
         providerMode: result.providerMode,
@@ -925,7 +969,9 @@ export default function App() {
         ),
       };
       setPayload(finalPayload);
-      await syncEncryptedVault(session, finalPayload);
+      if (!activeConversation.ephemeral) {
+        await syncEncryptedVault(session, finalPayload);
+      }
     } catch (err) {
       const errMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -1118,13 +1164,14 @@ export default function App() {
     window.speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/[#*`]/g, '')));
   }
 
-  function handlePanicWipeCache() {
+  async function handlePanicWipeCache() {
+    await wipeAllEncryptedEnvelopes();
     Object.keys(localStorage).forEach((k) => {
       if (k.startsWith('kavcy_') || k.startsWith('aegis_')) localStorage.removeItem(k);
     });
     setRecentVaults([]);
     handleLock();
-    showToast('Wiped all local browser ciphertext caches.');
+    showToast('Wiped all IndexedDB & localStorage encrypted caches.');
   }
 
   function handleExportSkills() {
@@ -1493,15 +1540,29 @@ export default function App() {
           </div>
         </div>
 
-        <button
-          className="btn btn-primary btn-full"
-          onClick={() => {
-            void handleNewConversation();
-            setDrawerOpen(false);
-          }}
-        >
-          <MessageSquarePlus size={15} /> New Conversation
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className="btn btn-primary"
+            style={{ flex: 1 }}
+            onClick={() => {
+              void handleNewConversation(false);
+              setDrawerOpen(false);
+            }}
+          >
+            <MessageSquarePlus size={15} /> New Chat
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '8px 10px' }}
+            title="Start Ephemeral Burn-After-Close Thread (RAM only, never saved)"
+            onClick={() => {
+              void handleNewConversation(true);
+              setDrawerOpen(false);
+            }}
+          >
+            <Flame size={15} color="var(--danger)" />
+          </button>
+        </div>
 
         <div>
           <div className="nav-section-label">Workspace</div>
@@ -1552,7 +1613,13 @@ export default function App() {
                   setDrawerOpen(false);
                 }}
               >
-                {conv.pinned ? <Pin size={12} color="var(--accent)" /> : <MessageSquare size={13} />}
+                {conv.ephemeral ? (
+                  <Flame size={12} color="var(--danger)" />
+                ) : conv.pinned ? (
+                  <Pin size={12} color="var(--accent)" />
+                ) : (
+                  <MessageSquare size={13} />
+                )}
                 {renamingId === conv.id ? (
                   <input
                     autoFocus
@@ -1674,8 +1741,9 @@ export default function App() {
           </div>
         </header>
 
-        {/* TAB 1: PERSONAL AGENT CHAT */}
+        {/* TAB 1: PERSONAL AGENT CHAT + LIVE ARTIFACT CANVAS */}
         {activeTab === 'chat' && (
+          <div className={`chat-split ${canvasContent !== null ? 'with-canvas' : ''}`}>
           <div
             className="chat-layout"
             onDragOver={(e) => {
@@ -1691,6 +1759,15 @@ export default function App() {
               if (e.dataTransfer.files?.length) void ingestFilesForRag(e.dataTransfer.files);
             }}
           >
+            {activeConversation.ephemeral && (
+              <div className="ephemeral-banner">
+                <Flame size={13} />
+                <span>
+                  <strong>Burn-After-Close Mode:</strong> This thread lives strictly in volatile RAM — never written to
+                  IndexedDB or sync storage.
+                </span>
+              </div>
+            )}
             {isDraggingChat && (
               <div className="drop-overlay">
                 <KavcyEmblem size={54} active />
@@ -1817,8 +1894,18 @@ export default function App() {
                           {msg.role === 'user' ? 'You' : 'Kavcy'} ·{' '}
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {msg.providerMode === 'tee-direct' && ' · Direct-to-TEE'}
+                          {msg.providerMode === 'ollama' && ` · Local Ollama${msg.tokensPerSec ? ` (${msg.tokensPerSec} tok/s)` : ''}`}
                         </span>
                         <div className="msg-actions">
+                          {msg.role === 'assistant' && (
+                            <button
+                              className="icon-btn"
+                              title="Open in Split-Pane Artifact Canvas"
+                              onClick={() => setCanvasContent(msg.content)}
+                            >
+                              <PanelRightOpen size={13} />
+                            </button>
+                          )}
                           <button className="icon-btn" title="Star message" onClick={() => void handleToggleStar(msg.id)}>
                             <Star size={13} color={msg.starred ? 'var(--accent)' : undefined} />
                           </button>
@@ -1928,6 +2015,52 @@ export default function App() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {canvasContent !== null && (
+            <aside className="canvas-pane">
+              <div className="canvas-header">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <PanelRightOpen size={14} color="var(--accent)" /> Artifact Canvas (Editable)
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    className="icon-btn"
+                    title="Copy canvas"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(canvasContent);
+                      showToast('Copied canvas content.');
+                    }}
+                  >
+                    <Copy size={13} />
+                  </button>
+                  <button
+                    className="icon-btn"
+                    title="Download as .md"
+                    onClick={() => {
+                      const blob = new Blob([canvasContent], { type: 'text/markdown' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'kavcy-artifact.md';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    <Download size={13} />
+                  </button>
+                  <button className="icon-btn" title="Close canvas" onClick={() => setCanvasContent(null)}>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+              <textarea
+                className="canvas-editor"
+                value={canvasContent}
+                onChange={(e) => setCanvasContent(e.target.value)}
+              />
+            </aside>
+          )}
           </div>
         )}
 
@@ -2347,7 +2480,24 @@ export default function App() {
                     )}
                   </div>
 
-                  <h3><Cpu size={16} /> Detected Machine Hardware</h3>
+                  <h3><Cpu size={16} /> Detected Machine Hardware &amp; Live RAM Sparkline</h3>
+                  {ramHistory.length > 1 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <svg viewBox="0 0 200 36" width="100%" height="36" style={{ display: 'block', background: 'var(--bg-input)', borderRadius: 7, border: '1px solid var(--border)' }}>
+                        <polyline
+                          fill="none"
+                          stroke="var(--accent)"
+                          strokeWidth="1.8"
+                          points={ramHistory
+                            .map((pct, i) => `${(i / Math.max(1, ramHistory.length - 1)) * 196 + 2},${34 - (pct / 100) * 30}`)
+                            .join(' ')}
+                        />
+                      </svg>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                        Live Host RAM Utilization: {ramHistory[ramHistory.length - 1]}% (updates every 4s)
+                      </div>
+                    </div>
+                  )}
                   {hwSpecs ? (
                     <div className="code-block" style={{ maxHeight: 155 }}>
                       {JSON.stringify(
@@ -2492,6 +2642,81 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="card" style={{ marginBottom: 18 }}>
+                <h3><Share2 size={16} /> Shamir&apos;s Secret Sharing (3-of-5 Recovery Shards)</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 0 }}>
+                  Split your master passphrase into <strong>5 cryptographic shards</strong> over GF(2⁸). Any{' '}
+                  <strong>3 shards</strong> reconstruct your secret; 2 or fewer shards reveal mathematically zero
+                  information.
+                </p>
+                <div className="grid-2">
+                  <div>
+                    <div className="field">
+                      <label>Secret / Passphrase to Split (runs 100% in RAM)</label>
+                      <div className="input-row">
+                        <input
+                          className="input"
+                          type="password"
+                          value={shamirInput}
+                          onChange={(e) => setShamirInput(e.target.value)}
+                          placeholder="Enter recovery passphrase..."
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            if (!shamirInput.trim()) return;
+                            setShamirShards(splitSecretIntoShards(shamirInput.trim(), 5, 3));
+                            setShamirInput('');
+                            showToast('Generated 5 Shamir recovery shards (3-of-5 threshold).');
+                          }}
+                        >
+                          Split 3-of-5
+                        </button>
+                      </div>
+                    </div>
+                    {shamirShards.length > 0 && (
+                      <pre className="code-block" style={{ maxHeight: 140 }}>
+                        {shamirShards.join('\n')}
+                      </pre>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="field">
+                      <label>Reconstruct Secret (paste any 3 shards, one per line)</label>
+                      <textarea
+                        className="textarea"
+                        rows={4}
+                        value={shamirRecoverInput}
+                        onChange={(e) => setShamirRecoverInput(e.target.value)}
+                        placeholder="kavcy-shard-v1:3:1:..."
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        try {
+                          const recovered = combineShardsToSecret(shamirRecoverInput.split('\n'));
+                          setShamirRecovered(recovered);
+                          showToast('Secret reconstructed successfully from Shamir shards!');
+                        } catch (err) {
+                          setShamirRecovered(`Error: ${err instanceof Error ? err.message : 'Invalid shards'}`);
+                        }
+                      }}
+                    >
+                      Reconstruct Secret
+                    </button>
+                    {shamirRecovered && (
+                      <div className="spec-line" style={{ marginTop: 8, marginBottom: 0 }}>
+                        Recovered: <strong>{shamirRecovered}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="card">
                 <h3><History size={16} /> Encrypted Session Audit Log</h3>
                 {payload.auditLog.slice(0, 12).map((ev) => (
@@ -2544,14 +2769,37 @@ export default function App() {
                     onChange={(e) =>
                       void updatePayload((p) => ({
                         ...p,
-                        inference: { ...p.inference, mode: e.target.value as 'sandbox' | 'tee' },
+                        inference: { ...p.inference, mode: e.target.value as 'sandbox' | 'ollama' | 'tee' },
                       }))
                     }
                   >
                     <option value="sandbox">Zero-Egress Sandbox Mode</option>
+                    <option value="ollama">
+                      Local Ollama Bridge (100% Offline — {ollamaStatus.running ? `${ollamaStatus.models.length} models detected` : 'not running'})
+                    </option>
                     <option value="tee">Confidential Cloud TEE (OpenAI-Compatible)</option>
                   </select>
                 </div>
+
+                {payload.inference.mode === 'ollama' && ollamaStatus.models.length > 0 && (
+                  <div className="field">
+                    <label>Installed Local Ollama Models</label>
+                    <select
+                      className="select"
+                      value={payload.inference.model}
+                      onChange={(e) =>
+                        void updatePayload((p) => ({
+                          ...p,
+                          inference: { ...p.inference, model: e.target.value, providerName: 'Local Ollama' },
+                        }))
+                      }
+                    >
+                      {ollamaStatus.models.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="field">
                   <label style={{ justifyContent: 'flex-start', gap: 8, cursor: 'pointer' }}>

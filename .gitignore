@@ -4,3 +4,7 @@ server/data
 .env
 .local-deploy/
 Dockerfile
+__pycache__/
+*.pyc
+sdk/python/dist/
+sdk/node/*.tgz
