@@ -65,6 +65,9 @@ import { splitSecretIntoShards, combineShardsToSecret } from './crypto/shamir';
 import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { SealedDropPanel } from './components/SealedDropPanel';
 import { WorkflowsAndTools } from './components/WorkflowsAndTools';
+import { P2PSyncPanel } from './components/P2PSyncPanel';
+import { TeeAttestationVerifier } from './components/TeeAttestationVerifier';
+import { detectWebGpuStatus, type WebGpuStatus } from './utils/webgpuCheck';
 import {
   createVaultSession,
   encryptVault,
@@ -287,6 +290,8 @@ export default function App() {
   const [duressPhraseInput, setDuressPhraseInput] = useState('');
   const [byosUrl, setByosUrl] = useState(() => localStorage.getItem('kavcy_byos_url') || '');
   const [bundleSha256, setBundleSha256] = useState('');
+  const [webGpu, setWebGpu] = useState<WebGpuStatus | null>(null);
+  const [autoRouter, setAutoRouter] = useState(false);
   const [starredOnly, setStarredOnly] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editMsgDraft, setEditMsgDraft] = useState('');
@@ -363,6 +368,7 @@ export default function App() {
         setRamHistory([Math.round(((specs.totalRamGb - specs.freeRamGb) / specs.totalRamGb) * 100)]);
       }
     });
+    void detectWebGpuStatus().then(setWebGpu);
     void fetch('/api/ollama/status')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -2385,7 +2391,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3B: WORKFLOWS, APPROVAL TOOLS & CSV CHART ANALYZER */}
+        {/* TAB 3B: WORKFLOWS, APPROVAL TOOLS, COMPARE, VOICE MEMO & CSV CHART ANALYZER */}
         {activeTab === 'workflows' && (
           <WorkflowsAndTools
             documents={payload.documents}
@@ -2393,6 +2399,21 @@ export default function App() {
             onRunPrompt={(prompt) => {
               setActiveTab('chat');
               void sendPromptText(prompt);
+            }}
+            onSaveVoiceMemo={(transcript) => {
+              const item: VaultMemory = {
+                id: crypto.randomUUID(),
+                title: `Voice Memo (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
+                category: 'note',
+                tags: ['voice-memo'],
+                content: transcript,
+                createdAt: new Date().toISOString(),
+              };
+              void updatePayload(
+                (p) => ({ ...p, memories: [item, ...p.memories] }),
+                ['VOICE_MEMO', 'Saved encrypted offline voice memo transcript']
+              );
+              showToast('Voice memo transcript encrypted into Memory Vault.');
             }}
             onToast={showToast}
           />
@@ -2655,6 +2676,15 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="card" style={{ marginBottom: 18 }}>
+                <h3>In-Browser WebGPU Engine Readiness (Opt-In Only)</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 0 }}>
+                  {webGpu
+                    ? `${webGpu.supported ? '✓ Ready' : 'Not Available'} — ${webGpu.adapterName} (Max Buffer: ${webGpu.maxBufferMb} MB). ${webGpu.notes}`
+                    : 'Checking WebGPU hardware adapter...'}
+                </p>
+              </div>
+
               <div className="card">
                 <h3>Local Model Compatibility Matrix (Validated Against Your Machine)</h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 0 }}>
@@ -2785,6 +2815,18 @@ export default function App() {
                   </pre>
                 </div>
               </div>
+
+              <TeeAttestationVerifier inference={payload.inference} />
+
+              <P2PSyncPanel
+                envelope={serverEnvelope}
+                onReceiveEnvelope={(env) => {
+                  void saveEncryptedEnvelope(env.vaultId, env);
+                  rememberVaultId(env.vaultId);
+                  setRecentVaults(getRecentVaultIds());
+                }}
+                onToast={showToast}
+              />
 
               <SealedDropPanel session={session} onToast={showToast} />
 
@@ -2960,6 +3002,24 @@ export default function App() {
                       }
                     />
                     <span>Direct-to-TEE Browser Mode (zero proxy hop)</span>
+                  </label>
+                </div>
+
+                <div className="field">
+                  <label style={{ justifyContent: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={autoRouter}
+                      onChange={(e) => {
+                        setAutoRouter(e.target.checked);
+                        showToast(
+                          e.target.checked
+                            ? 'Smart Privacy Auto-Router enabled: short queries stay local (0 B); heavy prompts can escalate.'
+                            : 'Smart Privacy Auto-Router disabled.'
+                        );
+                      }}
+                    />
+                    <span>Smart Privacy Auto-Router (keep simple queries local, escalate heavy reasoning)</span>
                   </label>
                 </div>
 

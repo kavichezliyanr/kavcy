@@ -148,7 +148,8 @@ npm run build
 
 ---
 
-## Documentation
+## Documentation & Roadmap
+- [Roadmap v3.0 & v4.0 (50 Net-New Features)](./docs/ROADMAP_V3_V4.md)
 - [Technical Architecture & Cryptographic Spec](./docs/ARCHITECTURE.md)
 - [Privacy & Frequently Asked Questions](./docs/PRIVACY_AND_FAQ.md)
 - [Security & Threat Model](./SECURITY.md)
