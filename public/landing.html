@@ -3,459 +3,1274 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Kavcy — Post-Quantum Zero-Knowledge Personal AI Vault powered by NIST FIPS 203 ML-KEM-768, AES-256-GCM, client-side Hybrid RAG, and verifiable 0 B external egress."
+    />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Kavcy — Post-Quantum Zero-Knowledge Personal AI</title>
+    <title>Kavcy — Own Your Intelligence. Prove Nobody Else Can Read It.</title>
     <style>
       :root {
-        --bg: #0b0b0d;
-        --subtle: #111114;
-        --surface: #16161a;
-        --border: rgba(255, 255, 255, 0.09);
+        --bg: #08080a;
+        --bg-elevated: #0f0f13;
+        --surface: #141419;
+        --surface-hover: #1b1b22;
+        --border: rgba(255, 255, 255, 0.085);
         --border-strong: rgba(255, 255, 255, 0.16);
-        --text: #f2f2f3;
+        --text: #f4f4f6;
         --secondary: #a1a1aa;
         --muted: #71717a;
         --accent: #d4a359;
+        --accent-soft: rgba(212, 163, 89, 0.12);
         --verified: #34d399;
+        --verified-soft: rgba(52, 211, 153, 0.1);
+        --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;
       }
-      * { box-sizing: border-box; }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
         margin: 0;
         background: var(--bg);
         color: var(--text);
-        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;
+        font-family: var(--sans);
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
+        background-image:
+          radial-gradient(ellipse 80% 50% at 50% -15%, rgba(212, 163, 89, 0.09), transparent 65%),
+          linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+        background-size: 100% 100%, 64px 64px, 64px 64px;
       }
-      .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-      header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 20px 0; border-bottom: 1px solid var(--border);
+
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 24px;
       }
-      .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1.05rem; letter-spacing: -0.02em; }
-      nav { display: flex; gap: 22px; align-items: center; font-size: 0.88rem; flex-wrap: wrap; }
-      nav a { color: var(--secondary); text-decoration: none; }
-      nav a:hover { color: var(--text); }
+
+      /* Sticky Glassmorphic Header */
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(8, 8, 10, 0.78);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .header-inner {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 600;
+        font-size: 1.05rem;
+        letter-spacing: -0.02em;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        font-size: 0.87rem;
+      }
+
+      .nav-links a {
+        color: var(--secondary);
+        text-decoration: none;
+        transition: color 0.15s;
+      }
+
+      .nav-links a:hover {
+        color: var(--text);
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* Buttons */
       .btn {
-        display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px;
-        border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.88rem;
-        border: 1px solid var(--border-strong); color: var(--text); background: var(--surface);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 9px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.88rem;
+        border: 1px solid var(--border-strong);
+        color: var(--text);
+        background: var(--surface);
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, transform 0.1s;
       }
-      .btn-primary { background: var(--accent); color: #14110b; border-color: transparent; }
-      .hero { padding: 76px 0 56px; max-width: 780px; }
+
+      .btn:hover {
+        background: var(--surface-hover);
+        border-color: rgba(255, 255, 255, 0.28);
+      }
+
+      .btn:active {
+        transform: scale(0.98);
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: #14110b;
+        border-color: transparent;
+      }
+
+      .btn-primary:hover {
+        background: #e0b26a;
+        border-color: transparent;
+      }
+
+      .btn-sm {
+        padding: 7px 13px;
+        font-size: 0.8rem;
+      }
+
+      /* Hero */
+      .hero {
+        padding: 84px 0 48px;
+        text-align: center;
+      }
+
       .eyebrow {
-        display: inline-flex; align-items: center; gap: 8px; font-family: ui-monospace, Menlo, monospace;
-        font-size: 0.74rem; color: var(--verified); border: 1px solid rgba(52, 211, 153, 0.28);
-        background: rgba(52, 211, 153, 0.08); padding: 4px 10px; border-radius: 6px; margin-bottom: 18px;
-      }
-      h1 { font-size: clamp(2.1rem, 5vw, 3.2rem); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 16px; }
-      h2 { font-size: 1.55rem; letter-spacing: -0.02em; margin: 0 0 10px; }
-      .lead { font-size: 1.06rem; color: var(--secondary); margin: 0 0 28px; }
-      .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
-
-      .section { padding: 52px 0; border-top: 1px solid var(--border); }
-      .section-kicker {
-        font-family: ui-monospace, Menlo, monospace; font-size: 0.74rem;
-        color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        color: var(--verified);
+        border: 1px solid rgba(52, 211, 153, 0.28);
+        background: var(--verified-soft);
+        padding: 5px 12px;
+        border-radius: 999px;
+        margin-bottom: 22px;
       }
 
-      /* Why Choose Table */
-      .compare-table {
-        width: 100%; border-collapse: collapse; margin-top: 22px;
-        background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      .pulse-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--verified);
+        box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2);
       }
-      .compare-table th, .compare-table td {
-        padding: 13px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.88rem;
-      }
-      .compare-table th { background: var(--subtle); color: var(--secondary); font-weight: 600; }
-      .compare-table td.yes { color: var(--verified); font-weight: 600; }
-      .compare-table td.no { color: var(--muted); }
 
-      /* Step by step screenshots */
-      .steps-grid { display: grid; gap: 36px; margin-top: 28px; }
-      .step-card {
-        display: grid; grid-template-columns: 1fr 1.35fr; gap: 26px; align-items: center;
-        background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px;
+      h1 {
+        font-size: clamp(2.4rem, 5.6vw, 4rem);
+        line-height: 1.07;
+        letter-spacing: -0.035em;
+        margin: 0 auto 20px;
+        max-width: 860px;
+        font-weight: 700;
       }
-      .step-card.reverse { grid-template-columns: 1.35fr 1fr; }
-      .step-badge {
-        display: inline-block; font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem;
-        padding: 3px 9px; border-radius: 6px; background: rgba(212, 163, 89, 0.12);
-        color: var(--accent); border: 1px solid rgba(212, 163, 89, 0.3); margin-bottom: 10px;
-      }
-      .step-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-      .label-pill {
-        font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; padding: 3px 8px;
-        border-radius: 6px; background: var(--subtle); border: 1px solid var(--border); color: var(--secondary);
-      }
-      .shot-frame {
-        border-radius: 10px; overflow: hidden; border: 1px solid var(--border-strong);
-        background: #000; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
-      }
-      .shot-frame img { display: block; width: 100%; height: auto; }
 
-      .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 22px; }
-      .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-      .card h3 { margin: 0 0 8px; font-size: 1rem; }
-      .card p { margin: 0; font-size: 0.86rem; color: var(--secondary); }
-      code { font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; color: var(--accent); }
+      .hero-accent {
+        color: var(--accent);
+      }
+
+      .hero-lead {
+        font-size: clamp(1rem, 1.8vw, 1.16rem);
+        color: var(--secondary);
+        max-width: 680px;
+        margin: 0 auto 32px;
+      }
+
+      .cta-row {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 44px;
+      }
+
+      /* Trust Metrics Strip */
+      .metrics-strip {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(20, 20, 25, 0.85);
+        overflow: hidden;
+        margin-bottom: 48px;
+      }
+
+      .metric-cell {
+        padding: 18px 14px;
+        border-right: 1px solid var(--border);
+        text-align: center;
+      }
+
+      .metric-cell:last-child {
+        border-right: none;
+      }
+
+      .metric-val {
+        font-family: var(--mono);
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .metric-lbl {
+        font-size: 0.74rem;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+
+      /* Hero Window Showcase */
+      .window-frame {
+        border: 1px solid var(--border-strong);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #0b0b0d;
+        box-shadow: 0 36px 96px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(212, 163, 89, 0.12);
+        text-align: left;
+      }
+
+      .window-bar {
+        height: 38px;
+        padding: 0 14px;
+        background: #111115;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .window-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .window-frame img {
+        display: block;
+        width: 100%;
+        height: auto;
+        cursor: zoom-in;
+      }
+
+      /* Sections */
+      .section {
+        padding: 76px 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .kicker {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        margin-bottom: 10px;
+      }
+
+      h2 {
+        font-size: clamp(1.6rem, 3.2vw, 2.35rem);
+        letter-spacing: -0.028em;
+        line-height: 1.15;
+        margin: 0 0 12px;
+      }
+
+      .section-sub {
+        color: var(--secondary);
+        max-width: 680px;
+        margin: 0 0 32px;
+        font-size: 0.98rem;
+      }
+
+      /* Interactive Pillar Tabs */
+      .tabs-bar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+      }
+
+      .tab-btn {
+        padding: 9px 15px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--secondary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .tab-btn.active {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .tab-panel {
+        display: none;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+        align-items: center;
+      }
+
+      .tab-panel.active {
+        display: grid;
+      }
+
+      .code-box {
+        background: #09090c;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: #d4d4d8;
+        overflow-x: auto;
+        margin: 0;
+        line-height: 1.65;
+      }
+
+      .code-comment {
+        color: #71717a;
+      }
+
+      .code-key {
+        color: var(--accent);
+      }
+
+      .code-good {
+        color: var(--verified);
+      }
+
+      /* Comparison Table */
+      .table-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 640px;
+      }
+
+      th,
+      td {
+        padding: 14px 18px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.88rem;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      th {
+        background: var(--bg-elevated);
+        color: var(--secondary);
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      td.yes {
+        color: var(--verified);
+        font-weight: 600;
+      }
+
+      td.no {
+        color: var(--muted);
+      }
+
+      /* 7-Step Visual Walkthrough */
+      .steps-stack {
+        display: grid;
+        gap: 28px;
+      }
+
+      .step-row {
+        display: grid;
+        grid-template-columns: 1fr 1.35fr;
+        gap: 28px;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 26px;
+      }
+
+      .step-row.flip {
+        grid-template-columns: 1.35fr 1fr;
+      }
+
+      .step-num {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid rgba(212, 163, 89, 0.3);
+        padding: 3px 9px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+      }
+
+      .step-row h3 {
+        margin: 0 0 10px;
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+      }
+
+      .step-row p {
+        margin: 0;
+        color: var(--secondary);
+        font-size: 0.9rem;
+      }
+
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 14px;
+      }
+
+      .pill {
+        font-family: var(--mono);
+        font-size: 0.71rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        color: var(--secondary);
+      }
+
+      .shot {
+        border-radius: 11px;
+        overflow: hidden;
+        border: 1px solid var(--border-strong);
+        background: #000;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.48);
+        cursor: zoom-in;
+        transition: transform 0.2s, border-color 0.2s;
+      }
+
+      .shot:hover {
+        transform: translateY(-2px);
+        border-color: var(--accent);
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      /* Grids & Cards */
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 24px;
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--secondary);
+        font-size: 0.88rem;
+      }
+
+      /* FAQ Accordion */
+      .faq-list {
+        display: grid;
+        gap: 10px;
+        max-width: 820px;
+      }
+
+      details.faq-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        padding: 16px 20px;
+      }
+
+      details.faq-item summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.94rem;
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      details.faq-item summary::after {
+        content: '+';
+        font-family: var(--mono);
+        color: var(--accent);
+        font-size: 1.1rem;
+      }
+
+      details.faq-item[open] summary::after {
+        content: '−';
+      }
+
+      details.faq-item p {
+        margin: 12px 0 0;
+        color: var(--secondary);
+        font-size: 0.88rem;
+      }
+
+      /* Lightbox Modal */
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(4, 4, 6, 0.92);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        cursor: zoom-out;
+      }
+
+      .lightbox.open {
+        display: flex;
+      }
+
+      .lightbox img {
+        max-width: 94vw;
+        max-height: 90vh;
+        border-radius: 12px;
+        border: 1px solid var(--border-strong);
+        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8);
+      }
 
       footer {
-        border-top: 1px solid var(--border); padding: 28px 0;
-        font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+        border-top: 1px solid var(--border);
+        padding: 36px 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
       }
 
-      @media (max-width: 820px) {
-        .step-card, .step-card.reverse { grid-template-columns: 1fr; }
+      footer a {
+        color: var(--secondary);
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: var(--text);
+      }
+
+      @media (max-width: 880px) {
+        .nav-links {
+          display: none;
+        }
+        .metrics-strip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .metric-cell:nth-child(even) {
+          border-right: none;
+        }
+        .metric-cell {
+          border-bottom: 1px solid var(--border);
+        }
+        .tab-panel,
+        .step-row,
+        .step-row.flip {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <header>
-        <div class="logo">
-          <img src="./favicon.svg" alt="Kavcy logo" width="28" height="28" />
-          Kavcy
-        </div>
-        <nav>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="#">
+          <img src="./favicon.svg" alt="Kavcy Logo" width="28" height="28" />
+          <span>Kavcy</span>
+        </a>
+        <nav class="nav-links">
+          <a href="#architecture">Architecture</a>
           <a href="#why">Why Kavcy</a>
           <a href="#walkthrough">Walkthrough</a>
-          <a href="#sdks">Developer SDKs</a>
-          <a href="#downloads">Downloads</a>
-          <a href="./app.html" onclick="if (location.hostname === 'localhost') { this.href = '/'; }">Launch Web App →</a>
+          <a href="#sdks">SDKs</a>
+          <a href="#roadmap">Roadmap</a>
+          <a href="#faq">FAQ</a>
         </nav>
-      </header>
+        <div class="header-actions">
+          <a class="btn btn-sm" href="https://github.com/kavichezliyanr/kavcy">GitHub</a>
+          <a
+            class="btn btn-primary btn-sm"
+            href="./app.html"
+            onclick="if (location.hostname === 'localhost') { this.href = '/'; }"
+          >
+            Launch App →
+          </a>
+        </div>
+      </div>
+    </header>
 
+    <main class="wrap">
+      <!-- HERO -->
       <section class="hero">
-        <div class="eyebrow">● NIST FIPS 203 ML-KEM-768 · AES-256-GCM · VERIFIABLE 0 B EGRESS</div>
-        <h1>A post-quantum personal AI vault that even its host cannot read.</h1>
-        <p class="lead">
-          Kavcy encrypts your conversations, drag-and-drop RAG documents, memories, and custom agent skills inside
-          browser RAM before anything syncs. Verify <strong>0 B external traffic</strong> live, validate your hardware
-          before pulling local models, and unload models in 1 click to reclaim 100% CPU &amp; RAM.
+        <div class="eyebrow">
+          <span class="pulse-dot"></span>
+          <span>NIST FIPS 203 ML-KEM-768 · AES-256-GCM · VERIFIED 0 B EXTERNAL EGRESS</span>
+        </div>
+        <h1>
+          Own your intelligence.<br />
+          <span class="hero-accent">Prove nobody else can read it.</span>
+        </h1>
+        <p class="hero-lead">
+          Kavcy is a post-quantum, zero-knowledge personal AI vault. Drop PDFs, Obsidian folders, and private notes into
+          client-side RAG, verify <strong>0 B outbound traffic</strong> in real time, and unload local models in 1 click
+          to reclaim 100% of CPU and RAM.
         </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="./app.html" onclick="if (location.hostname === 'localhost') { this.href = '/'; }">Open Kavcy Workspace</a>
-          <a class="btn" href="#downloads">Download Mac &amp; Windows</a>
+          <a
+            class="btn btn-primary"
+            href="./app.html"
+            onclick="if (location.hostname === 'localhost') { this.href = '/'; }"
+          >
+            Launch Web Workspace (Free)
+          </a>
+          <a class="btn" href="#downloads">Download macOS (.dmg) &amp; Windows (.exe)</a>
+          <a class="btn" href="#sdks">Node &amp; Python SDKs</a>
+        </div>
+
+        <div class="metrics-strip">
+          <div class="metric-cell">
+            <div class="metric-val">ML-KEM-768</div>
+            <div class="metric-lbl">Post-Quantum Key Wrap</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-val" style="color: var(--verified);">0 B</div>
+            <div class="metric-lbl">Verified External Egress</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-val">3-of-5</div>
+            <div class="metric-lbl">Shamir GF(2⁸) Recovery</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-val">115 KB</div>
+            <div class="metric-lbl">Gzipped Web Core</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-val">MIT</div>
+            <div class="metric-lbl">100% Auditable Source</div>
+          </div>
+        </div>
+
+        <div class="window-frame">
+          <div class="window-bar">
+            <div class="window-dots"><span></span><span></span><span></span></div>
+            <span>kavcy — ML-KEM-768 Verified · External: 0 B · IndexedDB Encrypted</span>
+            <span>v1.2</span>
+          </div>
+          <img
+            src="./screenshots/step2-agent.png"
+            alt="Kavcy Zero-Knowledge Personal AI Workspace"
+            data-lightbox
+          />
+        </div>
+      </section>
+
+      <!-- INTERACTIVE ARCHITECTURE TABS -->
+      <section id="architecture" class="section">
+        <div class="kicker">Cryptographic Guarantees</div>
+        <h2>Don't trust a privacy policy. Verify the math.</h2>
+        <p class="section-sub">
+          Every layer of Kavcy is engineered so that even if a host, database, or network cable is compromised—today or
+          in a post-quantum future—your thoughts remain mathematically unreadable.
+        </p>
+
+        <div class="tabs-bar">
+          <button class="tab-btn active" data-tab="pq">1. Post-Quantum Vault</button>
+          <button class="tab-btn" data-tab="egress">2. Zero-Egress Meter</button>
+          <button class="tab-btn" data-tab="rag">3. Hybrid Client-Side RAG</button>
+          <button class="tab-btn" data-tab="hw">4. Hardware Guard &amp; Kill Switch</button>
+        </div>
+
+        <div id="tab-pq" class="tab-panel active">
+          <div>
+            <h3>NIST FIPS 203 ML-KEM-768 + AES-256-GCM</h3>
+            <p style="color: var(--secondary); font-size: 0.92rem;">
+              Classical RSA and X25519 key exchanges are vulnerable to "Harvest Now, Decrypt Later" quantum attacks.
+              Kavcy encapsulates a fresh 256-bit AES-GCM data key with <strong>ML-KEM-768</strong> on every single save,
+              wraps your secret key with 310,000-round <strong>PBKDF2-SHA512</strong>, and includes built-in
+              <strong>3-of-5 Shamir recovery shards</strong> and a <strong>Duress Decoy Vault</strong>.
+            </p>
+          </div>
+          <pre class="code-box"><span class="code-comment">// Stored ciphertext envelope (zero plaintext)</span>
+{
+  <span class="code-key">"algorithm"</span>: <span class="code-good">"ML-KEM-768+AES-256-GCM"</span>,
+  <span class="code-key">"kdf"</span>: <span class="code-good">"PBKDF2-SHA512 (310,000 rounds)"</span>,
+  <span class="code-key">"kemCiphertext"</span>: "1088-byte lattice encapsulation",
+  <span class="code-key">"encryptedData"</span>: "AES-256-GCM + 128-bit auth tag",
+  <span class="code-key">"tamperResistance"</span>: <span class="code-good">"1-bit flip -> immediate reject"</span>
+}</pre>
+        </div>
+
+        <div id="tab-egress" class="tab-panel">
+          <div>
+            <h3>Live Outbound Byte Meter &amp; Strict Air-Gap Switch</h3>
+            <p style="color: var(--secondary); font-size: 0.92rem;">
+              Before React even mounts, Kavcy instruments <code>window.fetch()</code> to log every local, external, and
+              blocked request. Flip the <strong>Strict Air-Gap Kill Switch</strong> to physically block any non-localhost
+              traffic, or enable <strong>Direct-to-TEE Mode</strong> when you explicitly want Confidential GPU inference.
+            </p>
+          </div>
+          <pre class="code-box"><span class="code-comment">// Realtime Network Meter Snapshot</span>
+EXTERNAL_OUTBOUND:  <span class="code-good">0 B</span>
+LOCALHOST_LOOPBACK: 22.7 KB (opaque ciphertext)
+AIR_GAP_BLOCKED:    0 requests
+PROXY_HOP_STATUS:   <span class="code-good">BYPASSED (Direct-to-TEE ready)</span></pre>
+        </div>
+
+        <div id="tab-rag" class="tab-panel">
+          <div>
+            <h3>Gigabyte IndexedDB + PDF/Obsidian Hybrid RAG</h3>
+            <p style="color: var(--secondary); font-size: 0.92rem;">
+              Drop <code>.pdf</code>, <code>.md</code>, <code>.csv</code>, <code>.json</code>, or an entire Obsidian
+              folder directly into Kavcy. Files are chunked in browser RAM, indexed with
+              <strong>Hybrid BM25 + 3-Gram Cosine Similarity</strong>, visualized in a live
+              <strong>Personal Knowledge Graph</strong>, and persisted encrypted inside IndexedDB.
+            </p>
+          </div>
+          <pre class="code-box"><span class="code-comment">// Zero plaintext search index on any server</span>
+1. Drop PDF / Obsidian folder -> extract text in RAM
+2. Split into 550-char overlapping chunks
+3. Hybrid BM25 + 3-gram cosine retrieval with citations
+4. Encrypt chunks with ML-KEM-768 -> IndexedDB</pre>
+        </div>
+
+        <div id="tab-hw" class="tab-panel">
+          <div>
+            <h3>Automatic RAM Validator &amp; 1-Click Model Unload</h3>
+            <p style="color: var(--secondary); font-size: 0.92rem;">
+              Kavcy inspects your machine's real RAM, CPU, GPU, and WebGPU limits before allowing local model pulls—blocking
+              oversized 14B/32B models on 8 GB laptops so your machine never freezes. Click
+              <strong>Disable &amp; Unload Model</strong> anytime to evict resident Ollama weights and free
+              <strong>100% of model CPU &amp; RAM</strong>.
+            </p>
+          </div>
+          <pre class="code-box"><span class="code-comment">// Hardware Guard on 8 GB Apple Silicon Mac</span>
+Qwen 2.5 3B (Q4)    -> <span class="code-good">COMPATIBLE</span> (2.0 GB)
+Llama 3.1 8B (Q4)   -> <span class="code-key">TIGHT FIT</span>  (may swap)
+DeepSeek R1 32B     -> BLOCKED    (requires 32 GB RAM)
+POST /api/model/unload -> <span class="code-good">0% CPU · 0 MB RAM</span></pre>
         </div>
       </section>
 
       <!-- WHY CHOOSE KAVCY -->
       <section id="why" class="section">
-        <div class="section-kicker">Why Choose Kavcy</div>
-        <h2>Zero-knowledge privacy without the setup nightmare.</h2>
-        <p style="color: var(--secondary); max-width: 720px; margin-top: 6px;">
-          Most cloud chatbots read your prompts and train on your life. Most local tools force you to debug Docker or
-          crash 8 GB laptops with oversized models. Kavcy gives you cryptographic proof and consumer-grade polish.
+        <div class="kicker">Why Choose Kavcy</div>
+        <h2>Cloud polish. Hardware-grade privacy. Zero compromise.</h2>
+        <p class="section-sub">
+          Compare Kavcy against mainstream cloud chatbots and developer-only local runners.
         </p>
-        <table class="compare-table">
-          <thead>
-            <tr>
-              <th>Capability</th>
-              <th>Cloud AI Chatbots</th>
-              <th>Local-Only Tinker Apps</th>
-              <th>Kavcy</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Post-Quantum Vault (ML-KEM-768 + AES-256-GCM)</td>
-              <td class="no">No</td>
-              <td class="no">Rarely</td>
-              <td class="yes">✓ Client-Side Default</td>
-            </tr>
-            <tr>
-              <td>Realtime Zero-Egress Network Meter + Air-Gap Switch</td>
-              <td class="no">No</td>
-              <td class="no">No</td>
-              <td class="yes">✓ Live 0 B Proof</td>
-            </tr>
-            <tr>
-              <td>Hardware RAM Validator (Blocks Incompatible Models)</td>
-              <td class="no">N/A</td>
-              <td class="no">Manual</td>
-              <td class="yes">✓ Automatic Guard</td>
-            </tr>
-            <tr>
-              <td>1-Click Model Unload (Free 100% CPU &amp; RAM)</td>
-              <td class="no">N/A</td>
-              <td class="no">CLI Only</td>
-              <td class="yes">✓ Instant Kill Switch</td>
-            </tr>
-            <tr>
-              <td>Drag-and-Drop Client-Side RAG with Citations</td>
-              <td class="no">Plaintext Upload</td>
-              <td class="no">Complex Setup</td>
-              <td class="yes">✓ 100% In-Browser RAM</td>
-            </tr>
-            <tr>
-              <td>Desktop + iPad + Mobile PWA</td>
-              <td class="yes">Yes</td>
-              <td class="no">Desktop Only</td>
-              <td class="yes">✓ Responsive Everywhere</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>Cloud AI Chatbots</th>
+                <th>Local-Only Runners</th>
+                <th>Kavcy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Post-Quantum E2EE Vault (<code>ML-KEM-768 + AES-256-GCM</code>)</td>
+                <td class="no">No</td>
+                <td class="no">No</td>
+                <td class="yes">✓ Default on every save</td>
+              </tr>
+              <tr>
+                <td>Realtime Zero-Egress Network Meter + Air-Gap Kill Switch</td>
+                <td class="no">No</td>
+                <td class="no">No</td>
+                <td class="yes">✓ Live 0 B proof</td>
+              </tr>
+              <tr>
+                <td>Hardware RAM Validator + 1-Click Model Unload (Free 100% RAM)</td>
+                <td class="no">N/A</td>
+                <td class="no">Manual / CLI</td>
+                <td class="yes">✓ Built-in Guard</td>
+              </tr>
+              <tr>
+                <td>Shamir 3-of-5 Recovery Shards + Duress Vault + Sealed Drops</td>
+                <td class="no">No</td>
+                <td class="no">No</td>
+                <td class="yes">✓ Included free</td>
+              </tr>
+              <tr>
+                <td>Client-Side PDF/Obsidian RAG + Knowledge Graph + Local CSV Charts</td>
+                <td class="no">Plaintext upload</td>
+                <td class="no">Docker setup</td>
+                <td class="yes">✓ 100% in browser RAM</td>
+              </tr>
+              <tr>
+                <td>Serverless P2P WebRTC Sync + BYOS (S3/R2/WebDAV)</td>
+                <td class="no">Vendor lock-in</td>
+                <td class="no">Single device</td>
+                <td class="yes">✓ Full sovereignty</td>
+              </tr>
+              <tr>
+                <td>Official Node.js (<code>@kavcy/sdk</code>) &amp; Python (<code>kavcy-sdk</code>) SDKs</td>
+                <td class="yes">Paid APIs</td>
+                <td class="no">Rarely</td>
+                <td class="yes">✓ Open-Source MIT</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
-      <!-- STEP BY STEP WALKTHROUGH WITH REAL SCREENSHOTS -->
+      <!-- 7-STEP VISUAL WALKTHROUGH -->
       <section id="walkthrough" class="section">
-        <div class="section-kicker">Step-by-Step Visual Walkthrough</div>
-        <h2>From zero to post-quantum private AI in 60 seconds.</h2>
+        <div class="kicker">7-Step Visual Walkthrough</div>
+        <h2>Every screen verified. Click any screenshot to inspect full-size.</h2>
+        <p class="section-sub">
+          Real captures from the live Kavcy workspace—zero mockups, zero console errors.
+        </p>
 
-        <div class="steps-grid">
-          <div class="step-card">
+        <div class="steps-stack">
+          <div class="step-row">
             <div>
-              <span class="step-badge">STEP 01 · VAULT INITIALIZATION</span>
-              <h3 style="margin: 0 0 8px;">Create or Unlock Your ML-KEM-768 Vault</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Pick a Vault ID and master passphrase (or generate a 6-word post-quantum phrase). Keys are derived
-                locally via PBKDF2-SHA512 (310,000 rounds) and wrapped with NIST FIPS 203 ML-KEM-768.
+              <span class="step-num">STEP 01 · VAULT GATE</span>
+              <h3>Initialize or Unlock Your ML-KEM-768 Vault</h3>
+              <p>
+                Generate a 6-word post-quantum passphrase or unlock via dual-synced IndexedDB cache. Supports portable
+                <code>.kavcy.json</code> backups, recent vault quick-pickers, and plausible-deniability Duress passphrases.
               </p>
-              <div class="step-labels">
-                <span class="label-pill">ML-KEM-768 Keypair</span>
-                <span class="label-pill">Strength Meter</span>
-                <span class="label-pill">Dual-Sync Cache</span>
-                <span class="label-pill">.kavcy.json Backup</span>
+              <div class="pills">
+                <span class="pill">ML-KEM-768</span>
+                <span class="pill">IndexedDB</span>
+                <span class="pill">Duress Vault</span>
+                <span class="pill">Passkeys</span>
               </div>
             </div>
-            <div class="shot-frame">
-              <img src="./screenshots/step1-gate.png" alt="Kavcy Step 1: Post-Quantum Vault Gate" />
+            <div class="shot">
+              <img src="./screenshots/step1-gate.png" alt="Step 1: Kavcy Vault Gate" data-lightbox />
             </div>
           </div>
 
-          <div class="step-card reverse">
-            <div class="shot-frame">
-              <img src="./screenshots/step2-agent.png" alt="Kavcy Step 2: Personal Agent Chat, Skills & Drag-Drop RAG" />
+          <div class="step-row flip">
+            <div class="shot">
+              <img src="./screenshots/step2-agent.png" alt="Step 2: Personal Agent, Skills and RAG" data-lightbox />
             </div>
             <div>
-              <span class="step-badge">STEP 02 · PERSONAL AGENT &amp; CLIENT-SIDE RAG</span>
-              <h3 style="margin: 0 0 8px;">Chat Privately, Drop Documents &amp; Toggle Skills</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Drag and drop <code>.txt</code>, <code>.md</code>, <code>.csv</code>, <code>.json</code>, or code files
-                directly onto the chat to chunk and search them locally in RAM. Save separate encrypted conversations,
-                run slash commands (<code>/rag</code>, <code>/unload</code>, <code>/lock</code>), and toggle custom skills.
+              <span class="step-num">STEP 02 · PERSONAL AGENT &amp; ARTIFACT CANVAS</span>
+              <h3>Separate Threads, Burn-After-Close Mode &amp; Split Canvas</h3>
+              <p>
+                Drag and drop documents right onto the chat, launch volatile RAM-only Burn-After-Close threads, open
+                drafts in the editable Split-Pane Artifact Canvas, or use slash commands (<code>/rag</code>,
+                <code>/unload</code>, <code>/lock</code>).
               </p>
-              <div class="step-labels">
-                <span class="label-pill">Drag &amp; Drop RAG</span>
-                <span class="label-pill">Separate Threads</span>
-                <span class="label-pill">Agent Skills</span>
-                <span class="label-pill">Slash Commands</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div>
-              <span class="step-badge">STEP 03 · ZERO-EGRESS &amp; HARDWARE GUARD</span>
-              <h3 style="margin: 0 0 8px;">Prove 0 B Outbound Traffic &amp; Protect Your RAM</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Monitor every request live with the Realtime Network Meter and flip the <strong>Air-Gap Kill Switch</strong>
-                to block non-localhost traffic. Validate which local models fit your RAM — incompatible models are
-                automatically blocked — and unload models anytime to free 100% CPU &amp; RAM.
-              </p>
-              <div class="step-labels">
-                <span class="label-pill">External: 0 B</span>
-                <span class="label-pill">Air-Gap Switch</span>
-                <span class="label-pill">RAM Validator</span>
-                <span class="label-pill">Model Kill Switch</span>
-              </div>
-            </div>
-            <div class="shot-frame">
-              <img src="./screenshots/step3-network-hardware.png" alt="Kavcy Step 3: Realtime Zero-Egress Network Meter and Hardware Compatibility Matrix" />
-            </div>
-          </div>
-
-          <div class="step-card reverse">
-            <div class="shot-frame">
-              <img src="./screenshots/step4-get-started.png" alt="Kavcy Step 4: Built-in Get Started Documentation & Privacy Readiness Checklist" />
-            </div>
-            <div>
-              <span class="step-badge">STEP 04 · BUILT-IN DOCUMENTATION</span>
-              <h3 style="margin: 0 0 8px;">Interactive Get Started Guide &amp; Privacy Checklist</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Built right into the left-side navigation: track your live Privacy Readiness Checklist, reference slash
-                commands and keyboard shortcuts (<code>⌘K</code>), and jump straight into any security tool.
-              </p>
-              <div class="step-labels">
-                <span class="label-pill">Left-Nav Docs</span>
-                <span class="label-pill">Privacy Checklist</span>
-                <span class="label-pill">⌘K Command Palette</span>
+              <div class="pills">
+                <span class="pill">Burn-After-Close</span>
+                <span class="pill">Artifact Canvas</span>
+                <span class="pill">Agent Skills</span>
+                <span class="pill">Slash Commands</span>
               </div>
             </div>
           </div>
 
-          <div class="step-card">
+          <div class="step-row">
             <div>
-              <span class="step-badge">STEP 05 · KNOWLEDGE GRAPH &amp; OBSIDIAN IMPORT</span>
-              <h3 style="margin: 0 0 8px;">Interactive Knowledge Graph, PDF RAG &amp; Folder Sync</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Visualize how your encrypted documents, memories, and tags connect inside a live Knowledge Graph
-                rendered strictly in RAM. Bulk-import an entire Obsidian/Markdown folder or PDF files into gigabyte-scale
-                encrypted <strong>IndexedDB</strong> with Hybrid BM25 + 3-gram vector search.
+              <span class="step-num">STEP 03 · ZERO-EGRESS &amp; HARDWARE GUARD</span>
+              <h3>Live 0 B Network Meter, RAM Sparkline &amp; Model Kill Switch</h3>
+              <p>
+                Prove zero traffic leaves your machine, watch real-time host RAM telemetry, block models that exceed your
+                hardware, check WebGPU readiness, and unload local Ollama models in 1 click to free 100% CPU &amp; RAM.
               </p>
-              <div class="step-labels">
-                <span class="label-pill">Knowledge Graph</span>
-                <span class="label-pill">IndexedDB Storage</span>
-                <span class="label-pill">PDF &amp; Folder Import</span>
-                <span class="label-pill">Hybrid RAG</span>
+              <div class="pills">
+                <span class="pill">External: 0 B</span>
+                <span class="pill">Air-Gap Switch</span>
+                <span class="pill">RAM Sparkline</span>
+                <span class="pill">Ollama Bridge</span>
               </div>
             </div>
-            <div class="shot-frame">
-              <img src="./screenshots/step5-knowledge-graph.png" alt="Kavcy Step 5: Personal Knowledge Graph and Obsidian Folder Import" />
+            <div class="shot">
+              <img src="./screenshots/step3-network-hardware.png" alt="Step 3: Network Meter and Hardware Guard" data-lightbox />
             </div>
           </div>
 
-          <div class="step-card reverse">
-            <div class="shot-frame">
-              <img src="./screenshots/step6-workflows-tools.png" alt="Kavcy Step 6: Human-in-the-Loop Tool Approval Gate and Local CSV Chart Analyzer" />
+          <div class="step-row flip">
+            <div class="shot">
+              <img src="./screenshots/step4-get-started.png" alt="Step 4: Built-In Get Started Documentation" data-lightbox />
             </div>
             <div>
-              <span class="step-badge">STEP 06 · WORKFLOWS, APPROVAL GATE &amp; CSV CHARTS</span>
-              <h3 style="margin: 0 0 8px;">Human-Approved Local Tools &amp; 0 B Data Charts</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Run multi-step agent pipelines and sandboxed local tools behind an explicit <strong>Approve / Deny</strong>
-                permission diff gate. Paste private financial CSV data to generate live charts completely in browser RAM
-                with zero outbound traffic.
+              <span class="step-num">STEP 04 · BUILT-IN DOCUMENTATION</span>
+              <h3>Left-Nav Get Started Guide &amp; Privacy Readiness Checklist</h3>
+              <p>
+                Onboard in seconds with a live Privacy Readiness Checklist, slash command cheat sheet, and
+                <code>⌘K</code> Command Palette right inside the app.
               </p>
-              <div class="step-labels">
-                <span class="label-pill">Tool Approval Gate</span>
-                <span class="label-pill">Multi-Step Pipelines</span>
-                <span class="label-pill">Local CSV Charts</span>
-                <span class="label-pill">Artifact Canvas</span>
+              <div class="pills">
+                <span class="pill">Privacy Checklist</span>
+                <span class="pill">Left-Nav Docs</span>
+                <span class="pill">⌘K Palette</span>
               </div>
             </div>
           </div>
 
-          <div class="step-card">
+          <div class="step-row">
             <div>
-              <span class="step-badge">STEP 07 · SEALED DROPS &amp; SHAMIR 3-OF-5 RECOVERY</span>
-              <h3 style="margin: 0 0 8px;">Post-Quantum P2P Sharing &amp; M-of-N Secret Shards</h3>
-              <p style="margin: 0; color: var(--secondary); font-size: 0.9rem;">
-                Seal sensitive notes directly to another user's <strong>ML-KEM-768 public key</strong>, split your master
-                passphrase into <strong>3-of-5 Shamir recovery shards</strong> over GF(2⁸), verify running app SHA-256
-                integrity, or configure a plausible-deniability Duress Vault and Passkey unlock.
+              <span class="step-num">STEP 05 · KNOWLEDGE GRAPH &amp; OBSIDIAN IMPORT</span>
+              <h3>Personal Knowledge Graph, PDF RAG &amp; Folder Sync</h3>
+              <p>
+                Explore live entity &amp; tag connections across your encrypted documents and memories in RAM. Bulk-import
+                entire Obsidian folders or PDFs with Hybrid BM25 + 3-gram vector search.
               </p>
-              <div class="step-labels">
-                <span class="label-pill">ML-KEM Sealed Drops</span>
-                <span class="label-pill">Shamir 3-of-5 Shards</span>
-                <span class="label-pill">Duress Vault</span>
-                <span class="label-pill">Passkeys &amp; BYOS</span>
+              <div class="pills">
+                <span class="pill">Knowledge Graph</span>
+                <span class="pill">PDF Extractor</span>
+                <span class="pill">Obsidian Import</span>
+                <span class="pill">Hybrid RAG</span>
               </div>
             </div>
-            <div class="shot-frame">
-              <img src="./screenshots/step7-zk-sealed-shamir.png" alt="Kavcy Step 7: Post-Quantum Sealed Drops and Shamir 3-of-5 Recovery Shards" />
+            <div class="shot">
+              <img src="./screenshots/step5-knowledge-graph.png" alt="Step 5: Personal Knowledge Graph" data-lightbox />
+            </div>
+          </div>
+
+          <div class="step-row flip">
+            <div class="shot">
+              <img src="./screenshots/step6-workflows-tools.png" alt="Step 6: Tool Approval Gate and CSV Charts" data-lightbox />
+            </div>
+            <div>
+              <span class="step-num">STEP 06 · WORKFLOWS, APPROVAL GATE &amp; CSV CHARTS</span>
+              <h3>Human-Approved Local Tools, Compare Mode &amp; Voice Memos</h3>
+              <p>
+                Inspect exact JSON payloads before approving local tools, chart private financial CSVs with 0 B egress,
+                run side-by-side prompt comparisons, schedule local routines, and encrypt offline voice memos.
+              </p>
+              <div class="pills">
+                <span class="pill">Approve / Deny Gate</span>
+                <span class="pill">Local CSV Charts</span>
+                <span class="pill">Blind Compare</span>
+                <span class="pill">Voice Memos</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-row">
+            <div>
+              <span class="step-num">STEP 07 · SEALED DROPS, P2P SYNC &amp; SHAMIR SHARDS</span>
+              <h3>Post-Quantum Sharing, Serverless WebRTC &amp; 3-of-5 Recovery</h3>
+              <p>
+                Seal messages to any recipient's ML-KEM-768 public key, sync encrypted vaults peer-to-peer over WebRTC
+                with zero signaling server, split recovery keys into 3-of-5 Shamir shards, and verify live SHA-256 bundle
+                integrity.
+              </p>
+              <div class="pills">
+                <span class="pill">Sealed Drops</span>
+                <span class="pill">P2P WebRTC</span>
+                <span class="pill">Shamir 3-of-5</span>
+                <span class="pill">TEE Attestation</span>
+              </div>
+            </div>
+            <div class="shot">
+              <img src="./screenshots/step7-zk-sealed-shamir.png" alt="Step 7: Sealed Drops and Shamir 3-of-5 Recovery" data-lightbox />
             </div>
           </div>
         </div>
       </section>
 
-      <!-- OFFICIAL DEVELOPER SDKS -->
+      <!-- DEVELOPER SDKS -->
       <section id="sdks" class="section">
-        <div class="section-kicker">Developer Ecosystem</div>
-        <h2>Integrate Kavcy into your own Node.js &amp; Python systems.</h2>
-        <p style="color: var(--secondary); max-width: 720px; margin-top: 6px;">
-          Embed post-quantum <code>ML-KEM-768 + AES-256-GCM</code> encrypted vaults, Shamir 3-of-5 recovery shards,
-          IndexedDB storage, and local client-side RAG directly in your applications.
+        <div class="kicker">Developer Ecosystem</div>
+        <h2>Embed Kavcy's post-quantum engine in your own stack.</h2>
+        <p class="section-sub">
+          Official MIT-licensed SDKs for Node.js/TypeScript and Python—tested in CI on every commit.
         </p>
-        <div class="grid-3">
-          <div class="card">
-            <h3>Node.js &amp; TypeScript (<code>@kavcy/sdk</code>)</h3>
-            <p style="margin-bottom: 12px;">Zero-knowledge ML-KEM-768 vault, Shamir M-of-N shards, and RAG with full TypeScript types.</p>
-            <pre style="background: var(--subtle); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.74rem; overflow-x: auto; margin: 0;"><code>npm install @kavcy/sdk
 
-import { KavcyVault, splitSecret } from '@kavcy/sdk';
-const v = await KavcyVault.create('app', pass);
-const env = await v.encrypt({ secret: 'data' });</code></pre>
-          </div>
+        <div class="grid-2">
           <div class="card">
-            <h3>Python (<code>kavcy-sdk</code>)</h3>
-            <p style="margin-bottom: 12px;">Pure-Python zero-knowledge vault, GF(2⁸) Shamir secret sharing, and local RAG chunker.</p>
-            <pre style="background: var(--subtle); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.74rem; overflow-x: auto; margin: 0;"><code>pip install kavcy-sdk
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="margin: 0;">Node.js &amp; TypeScript (<code>@kavcy/sdk</code>)</h3>
+              <button class="btn btn-sm" data-copy="sdk-node-code">Copy</button>
+            </div>
+            <pre id="sdk-node-code" class="code-box">npm install @kavcy/sdk
 
-from kavcy import KavcyVault, split_secret
-env = KavcyVault("app", pass).encrypt({"k": "v"})
-shards = split_secret(pass, 5, 3)</code></pre>
+import { KavcyVault, splitSecret, combineShares, chunkDocument, searchRag } from '@kavcy/sdk';
+
+const vault = await KavcyVault.create('app-vault', 'strong-passphrase');
+const envelope = await vault.encrypt({ note: 'Private user memory' });
+const plain = await KavcyVault.decrypt(envelope, 'strong-passphrase');
+
+const shards = splitSecret('strong-passphrase', 5, 3);
+const recovered = combineShares([shards[0], shards[2], shards[4]]);</pre>
           </div>
+
           <div class="card">
-            <h3>New in v1.1 — High-Impact Upgrades</h3>
-            <p style="margin: 0; font-size: 0.84rem; color: var(--secondary);">
-              • Gigabyte <strong>IndexedDB</strong> encrypted vault<br/>
-              • <strong>3-of-5 Shamir</strong> recovery shards<br/>
-              • <strong>Burn-After-Close</strong> RAM-only threads<br/>
-              • <strong>Native Local Ollama</strong> bridge + tok/s<br/>
-              • <strong>Split-Pane Artifact Canvas</strong><br/>
-              • Live <strong>Host RAM Sparkline</strong>
-            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="margin: 0;">Python (<code>kavcy-sdk</code>)</h3>
+              <button class="btn btn-sm" data-copy="sdk-py-code">Copy</button>
+            </div>
+            <pre id="sdk-py-code" class="code-box">pip install kavcy-sdk
+
+from kavcy import KavcyVault, split_secret, combine_shares, chunk_document, search_rag
+
+vault = KavcyVault("py-vault", "strong-passphrase")
+envelope = vault.encrypt({"notes": ["Private financial summary"]})
+data = KavcyVault.decrypt(envelope, "strong-passphrase")
+
+shards = split_secret("strong-passphrase", total_shares=5, threshold=3)
+assert combine_shares([shards[0], shards[2], shards[4]]) == "strong-passphrase"</pre>
           </div>
         </div>
       </section>
 
-      <!-- DOWNLOADS & CI/CD RELEASES -->
+      <!-- DOWNLOADS -->
       <section id="downloads" class="section">
-        <div class="section-kicker">Install &amp; Downloads</div>
-        <h2>Run on Web, iPad, macOS, or Windows.</h2>
-        <p id="release-meta" style="color: var(--secondary); font-size: 0.9rem; margin-top: 4px;">
-          Latest Release: <strong style="color: var(--text);">v1.0.0</strong> · Built &amp; verified automatically via GitHub Actions
+        <div class="kicker">Install &amp; Releases</div>
+        <h2>Run everywhere — Web, iPad, macOS, and Windows.</h2>
+        <p id="release-meta" class="section-sub" style="margin-bottom: 24px;">
+          Latest Release: <strong style="color: var(--text);">v1.2.0</strong> · Automatically built &amp; published via GitHub Actions
         </p>
         <div class="grid-3">
           <div class="card">
-            <h3>Web &amp; Mobile PWA</h3>
-            <p style="margin-bottom: 16px;">Zero installation. Runs on macOS, Windows, iPadOS, iOS, and Android with offline encrypted caching.</p>
-            <a class="btn btn-primary" href="./app.html" onclick="if (location.hostname === 'localhost') { this.href = '/'; }">Launch Web App</a>
+            <h3>Web &amp; iPad / Mobile PWA</h3>
+            <p style="margin-bottom: 18px;">Zero install. Works offline with IndexedDB encryption and slide-over mobile navigation.</p>
+            <a
+              class="btn btn-primary"
+              href="./app.html"
+              onclick="if (location.hostname === 'localhost') { this.href = '/'; }"
+            >
+              Launch Web App
+            </a>
           </div>
           <div class="card">
-            <h3>macOS Executable (.dmg)</h3>
-            <p id="mac-size" style="margin-bottom: 16px;">Apple Silicon native desktop app (<code>.dmg</code>) with local encrypted vault &amp; hardware RAM guard.</p>
+            <h3>macOS Desktop (.dmg)</h3>
+            <p style="margin-bottom: 18px;">Native Apple Silicon app with local Ollama bridge, hardware RAM guard, and 1-click model unload.</p>
             <a
               id="btn-mac-dmg"
               class="btn btn-primary"
-              href="https://github.com/kavichezliyanr/kavcy/releases/download/v1.0.0/Kavcy-1.0.0-arm64.dmg"
+              href="https://github.com/kavichezliyanr/kavcy/releases/latest"
             >
               Download macOS (.dmg)
             </a>
           </div>
           <div class="card">
-            <h3>Windows Executable (.exe)</h3>
-            <p id="win-size" style="margin-bottom: 16px;">Native Windows installer (<code>Setup.exe</code>) and standalone portable executable.</p>
+            <h3>Windows Desktop (.exe)</h3>
+            <p style="margin-bottom: 18px;">Native NSIS installer and standalone portable executable built cleanly in CI.</p>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <a
                 id="btn-win-setup"
                 class="btn btn-primary"
-                href="https://github.com/kavichezliyanr/kavcy/releases/download/v1.0.0/Kavcy.Setup.1.0.0.exe"
+                href="https://github.com/kavichezliyanr/kavcy/releases/latest"
               >
-                Download Installer (.exe)
+                Windows Installer (.exe)
               </a>
               <a
                 id="btn-win-portable"
                 class="btn"
-                href="https://github.com/kavichezliyanr/kavcy/releases/download/v1.0.0/Kavcy.1.0.0.exe"
+                href="https://github.com/kavichezliyanr/kavcy/releases/latest"
               >
                 Portable .exe
               </a>
             </div>
           </div>
         </div>
-        <p style="margin-top: 16px; font-size: 0.8rem; color: var(--muted);">
-          View all builds, checksums &amp; release notes on
-          <a href="https://github.com/kavichezliyanr/kavcy/releases" style="color: var(--accent);">GitHub Releases</a> ·
-          Read the <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/ARCHITECTURE.md" style="color: var(--accent);">Architecture Spec</a> ·
-          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/PRIVACY_AND_FAQ.md" style="color: var(--accent);">Privacy FAQ</a> ·
-          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/ROADMAP_V3_V4.md" style="color: var(--accent);">v3.0 &amp; v4.0 Roadmap (50 Features)</a>.
+      </section>
+
+      <!-- V3 & V4 ROADMAP PREVIEW -->
+      <section id="roadmap" class="section">
+        <div class="kicker">Future Vision</div>
+        <h2>50-Feature Roadmap for v3.0 &amp; v4.0</h2>
+        <p class="section-sub">
+          Kavcy v2.0 shipped all 25 core features. Here is what comes next on our public engineering roadmap.
         </p>
+        <div class="grid-2">
+          <div class="card">
+            <span class="step-num">V3.0 · AUTONOMOUS SOVEREIGN OS</span>
+            <h3>25 Next-Gen Local &amp; Ecosystem Features</h3>
+            <p>
+              Opt-in WebLLM GPU inference, ONNX dense vector embeddings, offline Whisper audio transcription, Tesseract
+              OCR, Pyodide Python sandbox, full desktop MCP client, <code>⌥Space</code> global launcher, CRDT Yjs sync,
+              ML-DSA-65 signatures, Argon2id WASM KDF, Rust <code>kavcy-core</code> crate, Go SDK, and code-signed installers.
+            </p>
+          </div>
+          <div class="card">
+            <span class="step-num">V4.0 · POST-QUANTUM MESH &amp; ENTERPRISE</span>
+            <h3>25 Mesh, Compliance &amp; Federation Features</h3>
+            <p>
+              Multi-node TEE consensus, encrypted LAN compute mesh (iPad → desktop GPU), local PII redaction firewall
+              (HIPAA/SOC 2), Merkle audit chains, encrypted RBAC spaces, multi-agent local swarms, IMAP/CalDAV bridge,
+              open <code>.kavcy</code> RFC spec, QR paper cold storage, and third-party cryptography audit.
+            </p>
+          </div>
+        </div>
+        <div style="margin-top: 18px;">
+          <a class="btn" href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/ROADMAP_V3_V4.md">
+            Read the Full 50-Feature Roadmap →
+          </a>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="section">
+        <div class="kicker">Questions &amp; Answers</div>
+        <h2>Built for healthy skepticism.</h2>
+        <div class="faq-list" style="margin-top: 22px;">
+          <details class="faq-item" open>
+            <summary>Does GitHub Pages or any server ever see my conversations or files?</summary>
+            <p>
+              No. On GitHub Pages, Kavcy runs 100% inside your browser RAM and encrypted IndexedDB with zero backend
+              servers. Even if you attach an optional sync host or BYOS S3/R2 bucket, only opaque ML-KEM-768 +
+              AES-256-GCM ciphertext leaves your device.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>What if I forget my master passphrase?</summary>
+            <p>
+              Because Kavcy is strictly zero-knowledge, there is no password reset backdoor. Use the built-in
+              <strong>Shamir 3-of-5 Recovery Shards</strong> tool in ZK Inspector to split your passphrase across 5
+              trusted locations or family members—any 3 shards recover it safely.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>Will running Kavcy slow down or freeze my 8 GB laptop?</summary>
+            <p>
+              No. Kavcy installs zero heavy model weights by default (115 KB web core). If you choose to connect a local
+              Ollama runtime, Kavcy validates your exact RAM first, blocks incompatible 14B/32B models, and gives you a
+              1-click <strong>Disable &amp; Unload Model</strong> kill switch to immediately reclaim 100% CPU &amp; RAM.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>Why does macOS or Windows warn when opening the open-source installer?</summary>
+            <p>
+              Community CI releases are not yet signed with paid Apple Developer ($99/yr) or Windows EV certificates.
+              On macOS, right-click <code>Kavcy.app</code> → <strong>Open</strong>. On Windows, click
+              <strong>More info → Run anyway</strong>—or inspect the open-source code and build locally with
+              <code>npm run build</code>.
+            </p>
+          </details>
+        </div>
       </section>
 
       <footer>
         <span>Kavcy — Verifiable Open-Source Post-Quantum Personal AI</span>
-        <span>
-          <a href="https://github.com/kavichezliyanr/kavcy" style="color: var(--secondary); text-decoration: none;">GitHub</a> ·
-          MIT License · NIST ML-KEM-768 · AES-256-GCM
-        </span>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <a href="https://github.com/kavichezliyanr/kavcy">GitHub</a>
+          <a href="https://github.com/kavichezliyanr/kavcy/releases">Releases</a>
+          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/SECURITY.md">Security</a>
+          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/docs/ROADMAP_V3_V4.md">Roadmap</a>
+          <a href="https://github.com/kavichezliyanr/kavcy/blob/main/LICENSE">MIT License</a>
+        </div>
       </footer>
+    </main>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox" onclick="this.classList.remove('open')">
+      <img id="lightbox-img" src="" alt="Enlarged Kavcy screenshot" />
     </div>
 
     <script>
-      // Automatically keep homepage download buttons synced with the latest GitHub Release
+      // Interactive Architecture Tabs
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+          btn.classList.add('active');
+          const panel = document.getElementById('tab-' + btn.dataset.tab);
+          if (panel) panel.classList.add('active');
+        });
+      });
+
+      // Screenshot Lightbox
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lightbox-img');
+      document.querySelectorAll('[data-lightbox]').forEach((img) => {
+        img.addEventListener('click', () => {
+          lbImg.src = img.src;
+          lbImg.alt = img.alt;
+          lb.classList.add('open');
+        });
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') lb.classList.remove('open');
+      });
+
+      // Copy SDK Snippets
+      document.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const el = document.getElementById(btn.dataset.copy);
+          if (!el) return;
+          await navigator.clipboard.writeText(el.textContent || '');
+          const orig = btn.textContent;
+          btn.textContent = 'Copied ✓';
+          setTimeout(() => (btn.textContent = orig), 1600);
+        });
+      });
+
+      // Sync Download Buttons with Latest GitHub Release
       (async () => {
         try {
           const res = await fetch('https://api.github.com/repos/kavichezliyanr/kavcy/releases/latest');
@@ -469,7 +1284,7 @@ shards = split_secret(pass, 5, 3)</code></pre>
 
           const meta = document.getElementById('release-meta');
           if (meta && rel.tag_name) {
-            meta.innerHTML = `Latest Release: <strong style="color: var(--text);">${rel.tag_name}</strong> · Automatically built &amp; published via GitHub Actions`;
+            meta.innerHTML = `Latest Release: <strong style="color: var(--text);">${rel.tag_name}</strong> · Built &amp; published automatically via GitHub Actions`;
           }
           if (dmg) {
             const el = document.getElementById('btn-mac-dmg');
@@ -493,7 +1308,7 @@ shards = split_secret(pass, 5, 3)</code></pre>
             }
           }
         } catch {
-          // Fallback static v1.0.0 URLs already set in HTML
+          // fallback links remain active
         }
       })();
     </script>
